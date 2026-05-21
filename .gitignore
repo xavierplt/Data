@@ -1,0 +1,14 @@
+# Données brutes — ne pas versionner
+*.xlsx
+*.xls
+*.zip
+*.parquet
+*.csv
+
+# OneDrive temp files
+~$*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
