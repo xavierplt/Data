@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
+import requests
 
 st.set_page_config(
     page_title="IESF — Observatoire des Ingénieurs",
@@ -58,6 +59,60 @@ COLORS = {
 }
 
 
+INSERSUP_DIPLOME_MAP = {
+    "Diplôme d'ingénieur": "Diplôme d'ingénieur",
+    "Master / DEA / DESS": "Master LMD",
+    "Master": "Master LMD",
+    "Doctorat": "Doctorat",
+}
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def load_insersup(diplome_iesf):
+    diplome_key = INSERSUP_DIPLOME_MAP.get(diplome_iesf)
+    if not diplome_key:
+        return None
+    try:
+        url = (
+            "https://data.enseignementsup-recherche.gouv.fr"
+            "/api/explore/v2.1/catalog/datasets/fr-esr-insersup/records"
+        )
+        params = {
+            "where": f'diplome="{diplome_key}"',
+            "limit": 200,
+            "select": (
+                "annee,"
+                "taux_dinsertion,"
+                "salaire_net_median_des_emplois_a_temps_plein,"
+                "taux_emplois_cadre_ou_professions_intermediaires,"
+                "taux_emplois_stables"
+            ),
+        }
+        resp = requests.get(url, params=params, timeout=10)
+        if not resp.ok:
+            return None
+        records = resp.json().get("results", [])
+        if not records:
+            return None
+        df_is = pd.DataFrame(records)
+        if "annee" in df_is.columns:
+            df_is = df_is[df_is["annee"] == df_is["annee"].max()]
+        result = {}
+        field_map = {
+            "taux_dinsertion": "taux_dinsertion",
+            "salaire_net_median_des_emplois_a_temps_plein": "salaire_net_median",
+            "taux_emplois_cadre_ou_professions_intermediaires": "taux_emplois_cadre",
+            "taux_emplois_stables": "taux_emplois_stables",
+        }
+        for src, dst in field_map.items():
+            if src in df_is.columns:
+                val = pd.to_numeric(df_is[src], errors="coerce").median()
+                result[dst] = None if pd.isna(val) else float(val)
+        return result if result else None
+    except Exception:
+        return None
+
+
 @st.cache_data(show_spinner="Chargement des données 2025…")
 def load_2025():
     df = pd.read_excel(
@@ -105,6 +160,16 @@ def salaire_median_pondere(df, col="salaire_corrige"):
     cumw = sub["poids"].cumsum()
     half = sub["poids"].sum() / 2
     return float(sub.loc[cumw >= half, col].iloc[0])
+
+
+def salaire_quantile_pondere(df, q, col="salaire_corrige"):
+    sub = df[[col, "poids"]].dropna()
+    if sub.empty:
+        return np.nan
+    sub = sub.sort_values(col)
+    cumw = sub["poids"].cumsum()
+    threshold = sub["poids"].sum() * q
+    return float(sub.loc[cumw >= threshold, col].iloc[0])
 
 
 def pct(df, col, val):
@@ -285,8 +350,8 @@ st.markdown("---")
 
 # ── Tabs ───────────────────────────────────────────────────────────────────────
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(
-    ["👤 Profil", "🏢 Emploi & Secteurs", "💶 Rémunération", "💻 Travail & IA", "📊 Comparaison 2024-2025"]
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+    ["👤 Profil", "🏢 Emploi & Secteurs", "💶 Rémunération", "💻 Travail & IA", "📊 Comparaison 2024-2025", "🎯 Simulateur de Carrière"]
 )
 
 # ─── TAB 1 : PROFIL ────────────────────────────────────────────────────────────
@@ -629,3 +694,180 @@ with tab5:
         fig_cadre.update_traces(texttemplate="%{text} %", textposition="outside")
         fig_cadre.update_layout(height=340, margin=dict(l=0, r=0, t=40, b=0), title_font_size=14)
         st.plotly_chart(fig_cadre, use_container_width=True)
+
+
+# ─── TAB 6 : SIMULATEUR DE CARRIÈRE ──────────────────────────────────────────
+
+AGE_ORDER_SIM = [
+    "Moins de 30 ans", "De 30 à 39 ans", "De 40 à 49 ans", "De 50 à 64 ans", "65 et plus"
+]
+
+with tab6:
+    st.markdown("## 🎯 Simulateur de carrière — Jeune ingénieur")
+    st.markdown(
+        "Renseignez votre profil pour estimer votre rémunération et obtenir "
+        "des repères de carrière issus des données IESF 2025 et de data.gouv.fr (InserSup)."
+    )
+
+    form_col, result_col = st.columns([1, 2], gap="large")
+
+    with form_col:
+        with st.form("sim_form"):
+            st.subheader("Votre profil")
+            sim_genre = st.radio("Genre", ["Masculin", "Féminin"], horizontal=True)
+            sim_age = st.selectbox("Tranche d'âge", AGE_ORDER_SIM, index=0)
+            diplomes_sim = sorted(df25["diplome"].dropna().unique().tolist())
+            sim_diplome = st.selectbox("Type de diplôme", diplomes_sim)
+            secteurs_opts = ["Tous"] + sorted(df25["secteur"].dropna().unique().tolist())
+            sim_secteur = st.selectbox("Secteur d'activité", secteurs_opts)
+            regions_opts = ["Toutes"] + sorted(df25["region"].dropna().unique().tolist())
+            sim_region = st.selectbox("Région", regions_opts)
+            submitted = st.form_submit_button(
+                "Estimer mon salaire", type="primary", use_container_width=True
+            )
+
+    with result_col:
+        if not submitted:
+            st.info(
+                "Renseignez votre profil dans le formulaire à gauche "
+                "et cliquez sur **Estimer mon salaire**."
+            )
+        else:
+            # Build profile filter — progressively relax if too few data points
+            def build_mask(genre, age, diplome, secteur, region):
+                m = (df25["genre"] == genre) & (df25["age"] == age) & (df25["diplome"] == diplome)
+                if secteur != "Tous":
+                    m &= df25["secteur"] == secteur
+                if region != "Toutes":
+                    m &= df25["region"] == region
+                return m
+
+            mask_full = build_mask(sim_genre, sim_age, sim_diplome, sim_secteur, sim_region)
+            sub = df25[mask_full].dropna(subset=["salaire_corrige"])
+            relaxed = False
+
+            if len(sub) < 20:
+                mask_relaxed = (
+                    (df25["genre"] == sim_genre)
+                    & (df25["age"] == sim_age)
+                    & (df25["diplome"] == sim_diplome)
+                )
+                sub = df25[mask_relaxed].dropna(subset=["salaire_corrige"])
+                relaxed = True
+
+            if len(sub) < 5:
+                st.warning(
+                    "Pas assez de répondants pour ce profil. "
+                    "Essayez d'élargir la région ou le secteur."
+                )
+            else:
+                if relaxed:
+                    st.info(
+                        "Données insuffisantes pour votre région/secteur exact — "
+                        "estimation élargie à tous les ingénieurs du même genre, âge et diplôme."
+                    )
+
+                med = salaire_median_pondere(sub)
+                p25 = salaire_quantile_pondere(sub, 0.25)
+                p75 = salaire_quantile_pondere(sub, 0.75)
+                n_obs = len(sub)
+
+                m1, m2, m3 = st.columns(3)
+                with m1:
+                    st.metric("Fourchette basse (P25)", f"{p25:,.0f} €".replace(",", " "))
+                with m2:
+                    st.metric("Salaire médian brut", f"{med:,.0f} €".replace(",", " "))
+                with m3:
+                    st.metric("Fourchette haute (P75)", f"{p75:,.0f} €".replace(",", " "))
+
+                st.caption(f"Basé sur {n_obs} répondants IESF 2025 avec un profil similaire au vôtre.")
+
+                # Salary progression curve (genre + diplome + secteur, all ages)
+                prog_mask = (df25["genre"] == sim_genre) & (df25["diplome"] == sim_diplome)
+                if sim_secteur != "Tous":
+                    prog_mask &= df25["secteur"] == sim_secteur
+                prog_rows = []
+                for a in AGE_ORDER_SIM:
+                    adf = df25[prog_mask & (df25["age"] == a)].dropna(subset=["salaire_corrige"])
+                    if len(adf) >= 5:
+                        prog_rows.append({
+                            "Tranche d'âge": a,
+                            "Salaire médian (€)": salaire_median_pondere(adf),
+                        })
+                if len(prog_rows) >= 2:
+                    prog_df = pd.DataFrame(prog_rows)
+                    fig_prog = px.line(
+                        prog_df,
+                        x="Tranche d'âge", y="Salaire médian (€)",
+                        title="Progression salariale au fil de la carrière — profil similaire",
+                        markers=True,
+                        color_discrete_sequence=[COLORS["primary"]],
+                        category_orders={"Tranche d'âge": AGE_ORDER_SIM},
+                    )
+                    cur = prog_df[prog_df["Tranche d'âge"] == sim_age]
+                    if not cur.empty:
+                        fig_prog.add_scatter(
+                            x=cur["Tranche d'âge"], y=cur["Salaire médian (€)"],
+                            mode="markers",
+                            marker=dict(size=14, color=COLORS["secondary"]),
+                            name="Votre position actuelle",
+                        )
+                    fig_prog.update_layout(
+                        height=340,
+                        margin=dict(l=0, r=0, t=40, b=60),
+                        title_font_size=14,
+                        yaxis_tickformat=",.0f",
+                        yaxis_title="Salaire médian brut annuel (€)",
+                    )
+                    fig_prog.update_xaxes(tickangle=-20)
+                    st.plotly_chart(fig_prog, use_container_width=True)
+
+                # Contextual indicators from IESF
+                st.subheader("Indicateurs contextuels — profil similaire (IESF 2025)")
+                ic1, ic2, ic3 = st.columns(3)
+                total_p = sub["poids"].sum()
+                with ic1:
+                    n_c = sub.loc[sub["cadre"] == "Oui", "poids"].sum() if "cadre" in sub.columns else 0
+                    st.metric("Statut cadre", f"{round(100 * n_c / total_p)}%" if total_p > 0 else "N/D")
+                with ic2:
+                    n_t = sub.loc[sub["teletravail"] == "Oui", "poids"].sum() if "teletravail" in sub.columns else 0
+                    st.metric("Pratiquent le télétravail", f"{round(100 * n_t / total_p)}%" if total_p > 0 else "N/D")
+                with ic3:
+                    n_ia = sub.loc[sub["utilise_ia"] == "Oui", "poids"].sum() if "utilise_ia" in sub.columns else 0
+                    st.metric("Utilisent l'IA", f"{round(100 * n_ia / total_p)}%" if total_p > 0 else "N/D")
+
+            # ── datagouv InserSup panel ───────────────────────────────────────
+            st.markdown("---")
+            st.subheader("Données nationales à l'embauche — data.gouv.fr · InserSup")
+            with st.spinner("Interrogation de data.gouv.fr…"):
+                insersup = load_insersup(sim_diplome)
+
+            if insersup:
+                dg1, dg2, dg3, dg4 = st.columns(4)
+                with dg1:
+                    v = insersup.get("taux_dinsertion")
+                    st.metric("Taux d'insertion à 30 mois", f"{v:.0f} %" if v is not None else "N/D")
+                with dg2:
+                    v = insersup.get("salaire_net_median")
+                    st.metric(
+                        "Salaire net médian démarrage",
+                        f"{v:,.0f} €".replace(",", " ") if v is not None else "N/D",
+                        help="Salaire net mensuel × 12 — source InserSup (30 mois après diplôme)",
+                    )
+                with dg3:
+                    v = insersup.get("taux_emplois_cadre")
+                    st.metric("Accès poste cadre", f"{v:.0f} %" if v is not None else "N/D")
+                with dg4:
+                    v = insersup.get("taux_emplois_stables")
+                    st.metric("Emploi stable (CDI)", f"{v:.0f} %" if v is not None else "N/D")
+
+                st.caption(
+                    "Source : Ministère de l'Enseignement supérieur — Dispositif InserSup "
+                    "(dernière année disponible). Le salaire InserSup est **net**, "
+                    "le salaire IESF ci-dessus est **brut annuel**."
+                )
+            else:
+                st.info(
+                    "Données InserSup non disponibles pour ce type de diplôme "
+                    "(couverture : Diplôme d'ingénieur, Master, Doctorat)."
+                )
