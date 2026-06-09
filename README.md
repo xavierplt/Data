@@ -9,11 +9,14 @@ Tableau de bord interactif et simulateur de carrière construits à partir des d
 1. [Présentation du projet](#présentation-du-projet)
 2. [Sources de données](#sources-de-données)
 3. [Architecture technique](#architecture-technique)
-4. [Détail des onglets du dashboard](#détail-des-onglets-du-dashboard)
-5. [Simulateur de carrière — fonctionnement détaillé](#simulateur-de-carrière--fonctionnement-détaillé)
-6. [Intégration data.gouv.fr (InserSup)](#intégration-datagouvfr--insersup)
-7. [Lancer l'application](#lancer-lapplication)
-8. [Structure du projet](#structure-du-projet)
+4. [Colonnes chargées](#colonnes-chargées)
+5. [Détail des onglets](#détail-des-onglets)
+6. [Simulateur de carrière](#simulateur-de-carrière)
+7. [Onglet Géographie & Emploi](#onglet-géographie--emploi)
+8. [Onglet Marché & Mobilité](#onglet-marché--mobilité)
+9. [Intégration data.gouv.fr](#intégration-datagouvfr)
+10. [Lancer l'application](#lancer-lapplication)
+11. [Structure du projet](#structure-du-projet)
 
 ---
 
@@ -21,10 +24,12 @@ Tableau de bord interactif et simulateur de carrière construits à partir des d
 
 L'IESF publie chaque année une enquête auprès des ingénieurs et scientifiques français couvrant leur situation professionnelle, leurs rémunérations, leur rapport au travail et aux nouvelles technologies. Ce projet transforme ces données brutes (fichiers Excel Sphinx iQ) en un **observatoire interactif** accessible depuis un navigateur.
 
-L'objectif principal est double :
+Les objectifs sont :
 
 - **Analyser** la population des ingénieurs français sur les dimensions clés : profil démographique, emploi, rémunération, télétravail, IA, satisfaction.
-- **Orienter** les jeunes ingénieurs en début de carrière grâce à un simulateur qui croise les données IESF avec les données nationales de l'insertion professionnelle (InserSup, Ministère de l'Enseignement supérieur).
+- **Visualiser** géographiquement la répartition des ingénieurs sur le territoire français.
+- **Comprendre** la dynamique du marché de l'emploi : mobilité, crainte de perte d'emploi, taille des employeurs.
+- **Orienter** les jeunes ingénieurs en début de carrière grâce à un simulateur croisant les données IESF avec les données nationales InserSup (data.gouv.fr).
 
 ---
 
@@ -32,64 +37,66 @@ L'objectif principal est double :
 
 ### Données IESF (enquêtes 2024 et 2025)
 
-| Fichier | Feuille | Répondants approx. |
+| Fichier | Feuille | Colonnes |
 |---|---|---|
-| `exp_Questionnaire 2025.xlsx` | `Questionnaire 2025` | ~10 000 |
-| `exp_Questionnaire_2024.xlsx` | `Questionnaire_2024` | ~10 000 |
+| `exp_Questionnaire 2025.xlsx` | `Questionnaire 2025` | ~495 |
+| `exp_Questionnaire_2024.xlsx` | `Questionnaire_2024` | ~495 |
 
-Chaque fichier contient environ **495 colonnes** couvrant :
-- Profil (diplôme, école, année de diplôme, âge, genre, nationalité)
-- Situation professionnelle (statut, secteur, taille d'entreprise, nature, type de contrat)
-- Rémunération (salaire brut, part variable, dividendes, avantages)
-- Conditions de travail (télétravail, responsabilités, encadrement)
-- Usages technologiques (IA, outils, compétences)
-- Satisfaction, mobilité, logement, engagement associatif
+Les données couvrent : profil (diplôme, école, année d'obtention, âge, genre), situation professionnelle (statut, secteur, taille d'entreprise, type de contrat), géographie (département de résidence et de travail), rémunération (salaire brut, part variable), conditions de travail (télétravail, responsabilités), usages technologiques (IA), mobilité professionnelle, et satisfaction.
 
-Les données sont **pondérées** (colonne `poids`) pour être représentatives de la population réelle des ingénieurs français. Tous les calculs de médiane et de pourcentage utilisent ces poids.
+Les données sont **pondérées** (colonne `poids`) pour être représentatives de la population réelle. Tous les calculs de médiane et de pourcentage utilisent ces poids.
+
+### GeoJSON départements français
+
+Chargé depuis le dépôt public `gregoiredavid/france-geojson` (GitHub) pour la carte choroplèthe. Mis en cache 7 jours.
+
+```
+https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements.geojson
+```
 
 ### Données data.gouv.fr — InserSup
 
-Le dispositif **InserSup** du Ministère de l'Enseignement supérieur mesure l'insertion professionnelle des diplômés du supérieur à **30 mois** après l'obtention du diplôme. Les données sont interrogées en temps réel via l'API Open Data :
+Le dispositif **InserSup** du Ministère de l'Enseignement supérieur mesure l'insertion professionnelle des diplômés à **30 mois** après l'obtention du diplôme. Interrogé en temps réel via l'API Open Data, mis en cache 24h.
 
 ```
 https://data.enseignementsup-recherche.gouv.fr/api/explore/v2.1/catalog/datasets/fr-esr-insersup/records
 ```
 
-Champs utilisés :
-- `taux_dinsertion` — % de diplômés en emploi à 30 mois
-- `salaire_net_median_des_emplois_a_temps_plein` — salaire net médian mensuel
-- `taux_emplois_cadre_ou_professions_intermediaires` — % accédant à des postes cadres
-- `taux_emplois_stables` — % en CDI ou fonction publique
+Champs utilisés : taux d'insertion, salaire net médian, taux d'emploi cadre, taux d'emploi stable (CDI).
 
 ---
 
 ## Architecture technique
 
 ```
-dashboard.py          ← application Streamlit unique (tous les onglets)
-├── Chargement des données
-│   ├── load_2025()       # lecture Excel 2025, nettoyage, cache Streamlit
-│   ├── load_2024()       # idem pour 2024
-│   └── load_insersup()   # appel API data.gouv.fr, cache 24h
+dashboard.py
+├── Imports (streamlit, pandas, plotly, numpy, requests, re)
+├── Configuration de la page (wide layout)
+├── Constantes
+│   ├── COLS_2025 / COLS_2024   — mapping index → nom de colonne
+│   ├── TAILLE_ORDER            — ordre des tranches de taille d'entreprise
+│   └── COLORS                  — palette couleurs (genre, primaire, secondaire)
 ├── Fonctions utilitaires
-│   ├── salaire_median_pondere()     # médiane pondérée par poids
-│   ├── salaire_quantile_pondere()   # quantile pondéré (P25, P75)
-│   ├── pct()                        # pourcentage pondéré d'une valeur
-│   ├── bar_chart()                  # graphique barres horizontal/vertical
-│   ├── pie_chart()                  # graphique camembert
-│   └── salary_by_group_bar()        # médiane salariale par groupe
-├── Sidebar (filtres globaux)
-│   ├── Genre
-│   ├── Tranche d'âge
-│   ├── Secteur
-│   └── Situation professionnelle
-└── Onglets (tabs)
+│   ├── extract_dept_code()          — extraction du code département (regex)
+│   ├── load_geojson_depts()         — GeoJSON France (cache 7j)
+│   ├── load_insersup()              — API InserSup data.gouv.fr (cache 24h)
+│   ├── load_2025() / load_2024()    — lecture Excel + nettoyage (cache Streamlit)
+│   ├── salaire_median_pondere()     — médiane pondérée
+│   ├── salaire_quantile_pondere()   — quantile pondéré (P25, P75)
+│   ├── pct()                        — pourcentage pondéré
+│   ├── bar_chart() / pie_chart()    — graphiques génériques
+│   └── salary_by_group_bar()        — médiane salariale par groupe
+├── Sidebar (filtres globaux : genre, âge, secteur, situation)
+├── KPI Cards (5 métriques globales)
+└── 8 onglets
     ├── 👤 Profil
     ├── 🏢 Emploi & Secteurs
     ├── 💶 Rémunération
     ├── 💻 Travail & IA
     ├── 📊 Comparaison 2024-2025
-    └── 🎯 Simulateur de Carrière
+    ├── 🎯 Simulateur de Carrière
+    ├── 🗺️ Géographie & Emploi
+    └── 📈 Marché & Mobilité
 ```
 
 **Stack :**
@@ -98,127 +105,205 @@ dashboard.py          ← application Streamlit unique (tous les onglets)
 |---|---|
 | `streamlit 1.57` | Interface web, widgets, cache |
 | `pandas` | Manipulation des données tabulaires |
-| `plotly express` | Graphiques interactifs |
+| `plotly express` | Graphiques interactifs et carte choroplèthe |
 | `numpy` | Calculs numériques |
-| `requests` | Appels API data.gouv.fr |
+| `requests` | Appels API (data.gouv.fr, GeoJSON) |
+| `re` | Extraction des codes département (regex) |
 | `openpyxl` | Lecture des fichiers Excel |
 
 ---
 
-## Détail des onglets du dashboard
+## Colonnes chargées
 
-### Chargement sélectif des colonnes
+Le fichier 2025 contient ~495 colonnes mais seul un sous-ensemble est chargé via un dictionnaire `{index: nom}` pour limiter mémoire et temps de chargement. Le fichier 2024 utilise `skiprows=[1]` pour sauter la ligne de sous-en-tête Sphinx.
 
-Les fichiers Excel contiennent ~495 colonnes, mais seul un sous-ensemble est chargé via un dictionnaire `{index_colonne: nom_propre}`. Cela réduit la mémoire et le temps de chargement.
+| Index | Nom interne | Description |
+|---|---|---|
+| 2 | `diplome` | Type de diplôme |
+| 12 | `ecole` | École d'ingénieur |
+| 14 | `annee_diplome` | Année d'obtention du diplôme |
+| 51 | `annee_naissance` | Année de naissance |
+| 59 | `age` | Tranche d'âge |
+| 60 | `genre` | Genre |
+| 67 | `dept_residence` | Département de résidence |
+| 69 | `region` | Région de résidence |
+| 78 | `activite` | Activité principale |
+| 79 | `situation` | Situation professionnelle |
+| 93 | `dept_travail` | Département de travail |
+| 95 | `nature_entreprise` | Nature de l'organisation |
+| 97 | `domaine_fonctionnel` | Domaine fonctionnel |
+| 99 | `taille` | Taille de l'entreprise |
+| 101 | `secteur` | Secteur d'activité (regroupé) |
+| 120 | `cadre` | Statut cadre (Oui/Non) |
+| 121 | `type_contrat` | Type de contrat |
+| 122 | `responsabilites` | Responsabilités hiérarchiques |
+| 157 | `annee_recrutement` | Année de recrutement par l'employeur actuel |
+| 160 | `crainte_emploi` | Crainte de perte d'emploi |
+| 168 | `mobilite_5ans` | Changement d'emploi dans les 5 dernières années |
+| 211 | `salaire_brut` | Salaire brut cumulé déclaré |
+| 216 | `part_variable` | Bénéficie d'une part variable |
+| 217 | `montant_variable` | Montant brut de la part variable |
+| 229 | `teletravail` | Pratique du télétravail |
+| 230 | `jours_teletravail` | Jours de télétravail par semaine |
+| 487 | `utilise_ia` | Utilise l'IA au travail |
+| 488 | `type_ia` | Type d'IA utilisée |
+| 506 | `competence_ia` | Auto-évaluation des compétences IA |
+| 551 | `satisfaction` | Satisfaction globale au travail |
+| 665 | `poids` | Poids de pondération |
+| 666 | `salaire_corrige` | Salaire brut annuel corrigé (variable principale) |
 
-```python
-COLS_2025 = {
-    2: "diplome",
-    59: "age",
-    60: "genre",
-    69: "region",
-    78: "activite",
-    101: "secteur",
-    120: "cadre",
-    211: "salaire_brut",
-    666: "salaire_corrige",  # salaire pondéré et corrigé par IESF
-    ...
-}
-```
+**Colonnes calculées à la volée dans `load_2025()` :**
 
-Le fichier 2024 utilise `skiprows=[1]` pour sauter la ligne de sous-en-tête Sphinx.
+| Colonne | Calcul |
+|---|---|
+| `anciennete` | `2025 − annee_diplome` (borné à [0, 60]) |
+| `dept_travail_code` | Code département extrait de `dept_travail` via regex, zero-paddé à 2 chiffres |
+| `dept_residence_code` | Idem pour `dept_residence` |
 
-### Médiane pondérée
+---
 
-Toutes les médianes salariales sont **pondérées** pour respecter la représentativité de l'échantillon :
+## Détail des onglets
+
+### Médiane et quantiles pondérés
+
+Toutes les statistiques salariales utilisent le poids de pondération fourni par l'IESF :
 
 ```python
 def salaire_median_pondere(df, col="salaire_corrige"):
     sub = df[[col, "poids"]].dropna().sort_values(col)
     cumw = sub["poids"].cumsum()
-    half = sub["poids"].sum() / 2
-    return float(sub.loc[cumw >= half, col].iloc[0])
+    return float(sub.loc[cumw >= sub["poids"].sum() / 2, col].iloc[0])
+
+def salaire_quantile_pondere(df, q, col="salaire_corrige"):
+    sub = df[[col, "poids"]].dropna().sort_values(col)
+    cumw = sub["poids"].cumsum()
+    return float(sub.loc[cumw >= sub["poids"].sum() * q, col].iloc[0])
 ```
 
-Le même principe s'applique aux quantiles P25 et P75 (utilisés dans le simulateur).
+### 👤 Profil
 
-### Onglet 1 — Profil
+Distribution par diplôme, genre, tranche d'âge, région. Top 20 écoles d'ingénieurs représentées. Salaire médian par école (seuil minimum 30 répondants). Graphique empilé H/F par tranche d'âge pour visualiser l'évolution de la parité selon les générations.
 
-Distribution par diplôme, genre, tranche d'âge, région. Graphique empilé H/F par tranche d'âge pour visualiser l'évolution de la parité selon les générations.
+### 🏢 Emploi & Secteurs
 
-### Onglet 2 — Emploi & Secteurs
+Répartition par secteur, nature d'entreprise, statut cadre, responsabilités hiérarchiques, type de contrat, activité principale.
 
-Répartition par secteur d'activité, nature d'entreprise, statut cadre, responsabilités hiérarchiques, type de contrat, activité principale.
+### 💶 Rémunération
 
-### Onglet 3 — Rémunération
+Distribution des salaires bruts, médiane par genre, médiane par tranche d'âge, médiane par secteur et nature d'entreprise. Part variable (prévalence et distribution). **Salaire médian par taille d'entreprise** (TPE → GE). **Salaire médian par ancienneté** (tranches de 3 à 10 ans calculées depuis `annee_diplome`).
 
-Distribution des salaires bruts annuels, médiane par genre, médiane par tranche d'âge, médiane par secteur et nature d'entreprise. Part variable : prévalence et distribution des montants.
+### 💻 Travail & IA
 
-### Onglet 4 — Travail & IA
+Télétravail (taux global, jours/semaine, top secteurs). Usages IA (adoption, outils, adoption par âge, auto-évaluation). Satisfaction globale.
 
-Pratique du télétravail (taux global, jours/semaine, top secteurs). Usages de l'IA : taux d'adoption, types d'outils utilisés, adoption par tranche d'âge, auto-évaluation des compétences. Satisfaction globale au travail.
+### 📊 Comparaison 2024-2025
 
-### Onglet 5 — Comparaison 2024-2025
-
-Évolution du salaire médian brut entre 2024 et 2025 (variation en %). Superposition des distributions salariales. Évolution de l'écart H/F. Évolution de la part des cadres.
+Évolution du salaire médian brut entre 2024 et 2025. Superposition des distributions. Évolution de l'écart H/F. Évolution de la part des cadres.
 
 ---
 
-## Simulateur de carrière — fonctionnement détaillé
+## Simulateur de carrière
 
-### Objectif
+Onglet **🎯 Simulateur de Carrière**, ciblé sur les jeunes ingénieurs en début de parcours.
 
-Permettre à un jeune ingénieur en début de carrière de saisir son profil et d'obtenir :
-1. Une **estimation salariale personnalisée** basée sur les répondants IESF avec un profil similaire
-2. Une **courbe de progression** montrant comment le salaire évolue au fil de la carrière pour ce profil
-3. Des **indicateurs contextuels** (% cadre, % télétravail, % IA) pour ce profil
-4. Des **repères nationaux** à l'embauche issus du dispositif InserSup (data.gouv.fr)
+### Profil demandé
 
-### Variables de profil
+Genre, tranche d'âge, type de diplôme, secteur d'activité (optionnel), région (optionnelle).
 
-| Variable | Valeurs |
-|---|---|
-| Genre | Masculin / Féminin |
-| Tranche d'âge | Moins de 30 ans / De 30 à 39 ans / ... |
-| Type de diplôme | Valeurs issues de la colonne `diplome` IESF 2025 |
-| Secteur d'activité | Valeurs issues de la colonne `secteur` IESF 2025 (optionnel) |
-| Région | Valeurs issues de la colonne `region` IESF 2025 (optionnel) |
+### Logique d'estimation
 
-### Logique d'estimation salariale
+Le simulateur filtre `df25` sur les 5 dimensions et calcule la médiane pondérée + P25 + P75.
 
-Le simulateur filtre le dataframe IESF 2025 sur les 5 dimensions du profil et calcule la médiane pondérée ainsi que les quantiles P25 et P75.
+**Repli automatique** : si le profil exact retourne < 20 répondants, le filtre région + secteur est relâché. Un message informe l'utilisateur. En dessous de 5 répondants, un avertissement invite à élargir le profil.
 
-**Mécanisme de repli automatique** : si le profil exact retourne moins de 20 répondants (cas fréquent pour une combinaison région + secteur précise), le filtre sur la région et le secteur est relâché. L'utilisateur en est informé par un message. En dessous de 5 répondants, un avertissement invite à élargir le profil.
+### Résultats affichés
+
+- 3 métriques : P25 / médiane / P75 du salaire brut annuel
+- Courbe de progression salariale par âge (genre + diplôme + secteur, toutes tranches d'âge), avec point rouge sur la position actuelle
+- Indicateurs contextuels : % cadre, % télétravail, % IA — sur le même sous-ensemble de répondants
+- Panel InserSup (data.gouv.fr) : taux d'insertion 30 mois, salaire net médian démarrage, % accès cadre, % CDI
+
+---
+
+## Onglet Géographie & Emploi
+
+### Carte choroplèthe interactive
+
+Trois indicateurs au choix (bascule radio) :
+- **Nombre d'ingénieurs** — densité par département
+- **Salaire médian brut** — heatmap salariale territoriale
+- **Taux de télétravail** — disparités géographiques du remote work
+
+Bascule **lieu de travail ↔ lieu de résidence** pour comparer là où les ingénieurs travaillent et là où ils habitent.
+
+Implémentation avec `px.choropleth_mapbox` + GeoJSON départements + `open-street-map` comme fond de carte (aucun token Mapbox requis).
 
 ```python
-# Filtre complet (genre + âge + diplôme + secteur + région)
-mask_full = build_mask(sim_genre, sim_age, sim_diplome, sim_secteur, sim_region)
-sub = df25[mask_full].dropna(subset=["salaire_corrige"])
-
-# Repli si trop peu de données
-if len(sub) < 20:
-    mask_relaxed = (df25["genre"] == sim_genre) & (df25["age"] == sim_age) & (df25["diplome"] == sim_diplome)
-    sub = df25[mask_relaxed].dropna(subset=["salaire_corrige"])
+fig = px.choropleth_mapbox(
+    dept_df, geojson=geojson, locations="code",
+    featureidkey="properties.code", color=val_col,
+    mapbox_style="open-street-map",
+    zoom=4.6, center={"lat": 46.5, "lon": 2.3},
+)
 ```
 
-### Courbe de progression
+### Extraction des codes département
 
-La courbe est calculée en filtrant par **genre + diplôme + secteur** (sans filtre sur l'âge), puis en calculant la médiane pondérée pour chaque tranche d'âge disposant d'au moins 5 répondants. Un point rouge met en évidence la position actuelle de l'utilisateur.
+Les valeurs brutes sont du type `"92 - Hauts-de-Seine"`. Une regex extrait le code numérique et applique un zero-padding pour correspondre aux clés GeoJSON :
 
-### Indicateurs contextuels
+```python
+def extract_dept_code(s):
+    m = re.match(r'^(\d{1,3})', str(s).strip())
+    if m:
+        code = m.group(1)
+        return code.zfill(2) if len(code) < 3 else code
+    return None
+```
 
-Sur le même sous-ensemble de répondants, le simulateur calcule les taux pondérés :
-- Statut cadre (`cadre == "Oui"`)
-- Télétravail (`teletravail == "Oui"`)
-- Utilisation de l'IA (`utilise_ia == "Oui"`)
+### Autres visualisations
+
+- Top 15 départements par concentration d'ingénieurs
+- Comparaison **Île-de-France vs Province** sur 3 axes : salaire médian, taux télétravail, part des cadres
+- École la plus représentée par région (heatmap régionale)
 
 ---
 
-## Intégration data.gouv.fr — InserSup
+## Onglet Marché & Mobilité
 
-### Mapping des types de diplômes
+### KPIs globaux
 
-Les intitulés IESF sont mappés vers les codes InserSup :
+- % d'ingénieurs ayant changé d'emploi ou de poste dans les 5 dernières années
+- % craignant de perdre leur emploi dans l'année
+- Ancienneté médiane (années depuis le diplôme)
+- % travaillant dans un grand groupe (≥ 5 000 salariés)
+
+### Mobilité professionnelle
+
+Taux de mobilité sur 5 ans par secteur (min. 50 répondants). Permet d'identifier les secteurs les plus dynamiques en matière de rotation.
+
+### Crainte de l'emploi
+
+Taux de crainte de perte d'emploi par secteur — indicateur de sécurité perçue selon l'environnement de travail.
+
+### Taille d'entreprise
+
+Distribution des ingénieurs par taille (TPE / PME / ETI / GE) et taux de mobilité associé — les grandes structures retiennent-elles mieux leurs ingénieurs ?
+
+### Courbe d'évolution salariale H/F par ancienneté
+
+Calcul du salaire médian par tranche de 2 ans d'ancienneté, séparé par genre. Visualise si et quand l'écart salarial H/F se creuse au fil de la carrière. C'est le graphique le plus analytique du dashboard : il répond à la question *"L'écart se crée-t-il dès le départ ou s'accumule-t-il avec l'expérience ?"*
+
+### Salaire médian par domaine fonctionnel
+
+Classement des domaines (Recherche & Développement, Numérique, Industrie, etc.) par rémunération médiane.
+
+---
+
+## Intégration data.gouv.fr
+
+### InserSup — Simulateur de carrière
+
+Mapping des intitulés IESF vers les codes InserSup :
 
 ```python
 INSERSUP_DIPLOME_MAP = {
@@ -229,39 +314,23 @@ INSERSUP_DIPLOME_MAP = {
 }
 ```
 
-### Appel API et cache
+Appel API avec `@st.cache_data(ttl=86400)`. En cas d'indisponibilité, retourne `None` silencieusement — l'interface affiche un message info à la place.
 
-La fonction `load_insersup()` est décorée avec `@st.cache_data(ttl=86400)` : les données sont récupérées une fois par type de diplôme et mises en cache pendant 24 heures. En cas d'indisponibilité de l'API, la fonction retourne `None` silencieusement et un message info s'affiche à la place des métriques.
+**Note brut/net** : le salaire IESF (`salaire_corrige`) est un salaire **brut annuel** ; le salaire InserSup est un salaire **net mensuel** médian. La distinction est explicitement affichée dans l'interface.
 
-```python
-@st.cache_data(ttl=86400, show_spinner=False)
-def load_insersup(diplome_iesf):
-    diplome_key = INSERSUP_DIPLOME_MAP.get(diplome_iesf)
-    if not diplome_key:
-        return None
-    try:
-        resp = requests.get(url, params=params, timeout=10)
-        # filtre sur l'année la plus récente disponible
-        # moyenne des établissements pour le type de diplôme sélectionné
-        ...
-    except Exception:
-        return None
-```
+### GeoJSON France
 
-### Note brut / net
-
-Le salaire IESF (`salaire_corrige`) est un **salaire brut annuel**. Le salaire InserSup est un **salaire net mensuel** (médiane nationale à 30 mois). Cette distinction est explicitement mentionnée dans l'interface pour éviter toute confusion dans la comparaison.
+Chargé depuis GitHub avec `@st.cache_data(ttl=86400 * 7)` — une semaine de cache. Fallback silencieux si indisponible (la carte est remplacée par un message info).
 
 ---
 
 ## Lancer l'application
 
 ```bash
-# Depuis le répertoire du projet
 python -m streamlit run dashboard.py
 ```
 
-L'application est accessible sur `http://localhost:8501`.
+Accessible sur `http://localhost:8501`.
 
 **Dépendances :**
 
@@ -280,11 +349,11 @@ openpyxl
 
 ```
 Data/
-├── dashboard.py                          ← application principale
+├── dashboard.py                          ← application principale (8 onglets)
 ├── README.md                             ← ce fichier
 └── OneDrive_1_17-05-2026/
-    ├── exp_Questionnaire 2025.xlsx       ← données IESF 2025
-    └── exp_Questionnaire_2024.xlsx       ← données IESF 2024
+    ├── exp_Questionnaire 2025.xlsx       ← données IESF 2025 (~495 colonnes)
+    └── exp_Questionnaire_2024.xlsx       ← données IESF 2024 (~495 colonnes)
 ```
 
 Les fichiers de données sont exclus du dépôt git (`.gitignore`).
@@ -292,4 +361,5 @@ Les fichiers de données sont exclus du dépôt git (`.gitignore`).
 ---
 
 *Source IESF : Enquête annuelle 2024 & 2025 — Données pondérées — Questionnaire Sphinx iQ*
-*Source InserSup : Ministère de l'Enseignement supérieur, de la Recherche et de l'Espace — [data.gouv.fr](https://www.data.gouv.fr/datasets/insertion-professionnelle-des-diplomes-des-etablissements-denseignement-superieur-dispositif-insersup)*
+*Source InserSup : Ministère de l'Enseignement supérieur — [data.gouv.fr](https://www.data.gouv.fr/datasets/insertion-professionnelle-des-diplomes-des-etablissements-denseignement-superieur-dispositif-insersup)*
+*GeoJSON : [gregoiredavid/france-geojson](https://github.com/gregoiredavid/france-geojson) — Licence MIT*

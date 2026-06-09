@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 import requests
+import re
 
 st.set_page_config(
     page_title="IESF — Observatoire des Ingénieurs",
@@ -18,17 +19,27 @@ PATH_2024 = r"c:\Users\xavpl\OneDrive\Documents\IESF\Data\OneDrive_1_17-05-2026\
 
 # Columns to load from 2025 (by index → clean name)
 COLS_2025 = {
-    2: "diplome",
-    59: "age",
-    60: "genre",
-    69: "region",
-    78: "activite",
-    79: "situation",
-    95: "nature_entreprise",
+    2:   "diplome",
+    12:  "ecole",
+    14:  "annee_diplome",
+    51:  "annee_naissance",
+    59:  "age",
+    60:  "genre",
+    67:  "dept_residence",
+    69:  "region",
+    78:  "activite",
+    79:  "situation",
+    93:  "dept_travail",
+    95:  "nature_entreprise",
+    97:  "domaine_fonctionnel",
+    99:  "taille",
     101: "secteur",
     120: "cadre",
     121: "type_contrat",
     122: "responsabilites",
+    157: "annee_recrutement",
+    160: "crainte_emploi",
+    168: "mobilite_5ans",
     211: "salaire_brut",
     216: "part_variable",
     217: "montant_variable",
@@ -41,6 +52,18 @@ COLS_2025 = {
     665: "poids",
     666: "salaire_corrige",
 }
+
+TAILLE_ORDER = ["TPE (1 - 49 salariés)", "PME (50 à 249 salariés)", "ETI (250 - 4999 salariés)", "GE (5 000 salariés et plus)"]
+
+
+def extract_dept_code(s):
+    if pd.isna(s):
+        return None
+    m = re.match(r'^(\d{1,3})', str(s).strip())
+    if m:
+        code = m.group(1)
+        return code.zfill(2) if len(code) < 3 else code
+    return None
 
 COLS_2024 = {
     2: "diplome",
@@ -113,12 +136,24 @@ def load_insersup(diplome_iesf):
         return None
 
 
+@st.cache_data(ttl=86400 * 7, show_spinner=False)
+def load_geojson_depts():
+    try:
+        url = "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements.geojson"
+        resp = requests.get(url, timeout=15)
+        if resp.ok:
+            return resp.json()
+    except Exception:
+        pass
+    return None
+
+
 @st.cache_data(show_spinner="Chargement des données 2025…")
 def load_2025():
     df = pd.read_excel(
         PATH_2025,
         sheet_name="Questionnaire 2025",
-        engine="openpyxl",
+        engine="calamine",
         usecols=list(COLS_2025.keys()),
     )
     df.columns = [COLS_2025[c] for c in list(COLS_2025.keys())]
@@ -129,6 +164,13 @@ def load_2025():
         df.loc[df[col] > 1_000_000, col] = np.nan
         df.loc[df[col] <= 0, col] = np.nan
     df["poids"] = pd.to_numeric(df["poids"], errors="coerce").fillna(0)
+    for col in ("annee_diplome", "annee_naissance", "annee_recrutement"):
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    df["anciennete"] = (2025 - df["annee_diplome"]).where(
+        df["annee_diplome"].between(1950, 2025), other=np.nan
+    )
+    df["dept_travail_code"] = df["dept_travail"].apply(extract_dept_code)
+    df["dept_residence_code"] = df["dept_residence"].apply(extract_dept_code)
     df["annee"] = 2025
     return df
 
@@ -138,7 +180,7 @@ def load_2024():
     df = pd.read_excel(
         PATH_2024,
         sheet_name="Questionnaire_2024",
-        engine="openpyxl",
+        engine="calamine",
         usecols=list(COLS_2024.keys()),
         skiprows=[1],  # skip the sub-header row
     )
@@ -350,9 +392,16 @@ st.markdown("---")
 
 # ── Tabs ───────────────────────────────────────────────────────────────────────
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
-    ["👤 Profil", "🏢 Emploi & Secteurs", "💶 Rémunération", "💻 Travail & IA", "📊 Comparaison 2024-2025", "🎯 Simulateur de Carrière"]
-)
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    "👤 Profil",
+    "🏢 Emploi & Secteurs",
+    "💶 Rémunération",
+    "💻 Travail & IA",
+    "📊 Comparaison 2024-2025",
+    "🎯 Simulateur de Carrière",
+    "🗺️ Géographie & Emploi",
+    "📈 Marché & Mobilité",
+])
 
 # ─── TAB 1 : PROFIL ────────────────────────────────────────────────────────────
 
@@ -388,6 +437,31 @@ with tab1:
 
     with c4:
         st.plotly_chart(bar_chart(df, "region", "Top régions de résidence", top_n=12), use_container_width=True)
+
+    st.markdown("---")
+    c5, c6 = st.columns(2)
+    with c5:
+        st.plotly_chart(bar_chart(df, "ecole", "Top 20 écoles d'ingénieurs représentées", top_n=20), use_container_width=True)
+    with c6:
+        ecole_sal = []
+        for e, edf in df.groupby("ecole", dropna=True):
+            if edf["poids"].sum() < 30:
+                continue
+            med = salaire_median_pondere(edf)
+            n = int(edf["poids"].sum())
+            if not np.isnan(med):
+                ecole_sal.append({"École": e, "Médiane (€)": med, "Effectif pondéré": n})
+        if ecole_sal:
+            ecole_sal_df = pd.DataFrame(ecole_sal).sort_values("Médiane (€)", ascending=False).head(15).sort_values("Médiane (€)")
+            fig_es = px.bar(
+                ecole_sal_df, x="Médiane (€)", y="École", orientation="h",
+                title="Salaire médian brut par école (min. 30 répondants)",
+                color="Médiane (€)", color_continuous_scale="Blues",
+                text="Médiane (€)",
+            )
+            fig_es.update_traces(texttemplate="%{text:,.0f} €", textposition="outside")
+            fig_es.update_layout(showlegend=False, coloraxis_showscale=False, yaxis_title=None, height=500, margin=dict(l=0, r=80, t=40, b=0), title_font_size=14)
+            st.plotly_chart(fig_es, use_container_width=True)
 
     st.subheader("Évolution genre par tranche d'âge")
     age_genre = (
@@ -528,6 +602,52 @@ with tab3:
             )
             fig_pv.update_layout(height=340, margin=dict(l=0, r=0, t=40, b=0), title_font_size=14)
             st.plotly_chart(fig_pv, use_container_width=True)
+
+    st.markdown("---")
+    c7, c8 = st.columns(2)
+    with c7:
+        taille_order_present = [t for t in TAILLE_ORDER if t in df["taille"].dropna().unique()]
+        if taille_order_present:
+            taille_rows = [{"Taille": t, "Médiane (€)": salaire_median_pondere(df[df["taille"] == t])} for t in taille_order_present]
+            taille_rows = [r for r in taille_rows if not np.isnan(r["Médiane (€)"])]
+            if taille_rows:
+                fig_taille = px.bar(
+                    pd.DataFrame(taille_rows), x="Taille", y="Médiane (€)",
+                    title="Salaire médian brut par taille d'entreprise",
+                    color="Taille", color_discrete_sequence=px.colors.sequential.Blues[2:],
+                    text="Médiane (€)",
+                    category_orders={"Taille": TAILLE_ORDER},
+                )
+                fig_taille.update_traces(texttemplate="%{text:,.0f} €", textposition="outside")
+                fig_taille.update_layout(showlegend=False, height=380, margin=dict(l=0, r=0, t=40, b=80), title_font_size=14)
+                fig_taille.update_xaxes(tickangle=-20)
+                st.plotly_chart(fig_taille, use_container_width=True)
+
+    with c8:
+        anc_sub = df[df["anciennete"].between(0, 45)][["anciennete", "salaire_corrige", "poids"]].dropna()
+        if not anc_sub.empty:
+            anc_sub["Tranche (ans)"] = pd.cut(
+                anc_sub["anciennete"],
+                bins=[0, 3, 7, 12, 20, 30, 45],
+                labels=["0-3", "4-7", "8-12", "13-20", "21-30", "31+"],
+                right=False,
+            )
+            anc_rows = []
+            for label, group in anc_sub.groupby("Tranche (ans)", observed=True):
+                med = salaire_median_pondere(group.rename(columns={"salaire_corrige": "salaire_corrige"}))
+                if not np.isnan(med):
+                    anc_rows.append({"Ancienneté (ans depuis diplôme)": str(label), "Médiane (€)": med})
+            if anc_rows:
+                fig_anc = px.bar(
+                    pd.DataFrame(anc_rows),
+                    x="Ancienneté (ans depuis diplôme)", y="Médiane (€)",
+                    title="Salaire médian brut par ancienneté",
+                    color_discrete_sequence=[COLORS["primary"]],
+                    text="Médiane (€)",
+                )
+                fig_anc.update_traces(texttemplate="%{text:,.0f} €", textposition="outside")
+                fig_anc.update_layout(height=380, margin=dict(l=0, r=0, t=40, b=60), title_font_size=14)
+                st.plotly_chart(fig_anc, use_container_width=True)
 
 
 # ─── TAB 4 : TRAVAIL & IA ─────────────────────────────────────────────────────
@@ -871,3 +991,313 @@ with tab6:
                     "Données InserSup non disponibles pour ce type de diplôme "
                     "(couverture : Diplôme d'ingénieur, Master, Doctorat)."
                 )
+
+
+# ─── TAB 7 : GÉOGRAPHIE & EMPLOI ─────────────────────────────────────────────
+
+with tab7:
+    st.markdown("## 🗺️ Géographie & Emploi")
+
+    geo_col, map_col = st.columns([1, 3])
+
+    with geo_col:
+        st.markdown("### Paramètres")
+        map_metric = st.radio(
+            "Indicateur affiché",
+            ["Nombre d'ingénieurs", "Salaire médian (€)", "Taux de télétravail (%)"],
+            index=0,
+        )
+        map_scope = st.radio("Territoire", ["Lieu de travail", "Lieu de résidence"], index=0)
+        st.markdown("---")
+        st.caption(
+            "La carte représente les ingénieurs travaillant "
+            "ou résidant dans chaque département selon le filtre global."
+        )
+
+    with map_col:
+        dept_col = "dept_travail_code" if map_scope == "Lieu de travail" else "dept_residence_code"
+        dept_label_col = "dept_travail" if map_scope == "Lieu de travail" else "dept_residence"
+
+        dept_sub = df[[dept_col, dept_label_col, "salaire_corrige", "teletravail", "poids"]].copy()
+        dept_sub = dept_sub[dept_sub[dept_col].notna()]
+
+        dept_rows = []
+        for code, gdf in dept_sub.groupby(dept_col):
+            count = gdf["poids"].sum()
+            if count < 5:
+                continue
+            med_sal = salaire_median_pondere(gdf)
+            total_p = gdf["poids"].sum()
+            n_tele = gdf.loc[gdf["teletravail"] == "Oui", "poids"].sum()
+            pct_tele = round(100 * n_tele / total_p, 1) if total_p > 0 else 0
+            label = gdf[dept_label_col].dropna().mode()
+            label = label.iloc[0] if not label.empty else code
+            dept_rows.append({
+                "code": code,
+                "label": label,
+                "count": round(count),
+                "salaire": med_sal if not np.isnan(med_sal) else None,
+                "teletravail": pct_tele,
+            })
+
+        dept_df = pd.DataFrame(dept_rows)
+
+        metric_col_map = {
+            "Nombre d'ingénieurs": ("count", "Ingénieurs", "Blues"),
+            "Salaire médian (€)": ("salaire", "Salaire médian (€)", "RdYlGn"),
+            "Taux de télétravail (%)": ("teletravail", "Télétravail (%)", "Teal"),
+        }
+        val_col, val_label, colorscale = metric_col_map[map_metric]
+
+        geojson = load_geojson_depts()
+        if geojson and not dept_df.empty:
+            fig_map = px.choropleth_mapbox(
+                dept_df.dropna(subset=[val_col]),
+                geojson=geojson,
+                locations="code",
+                featureidkey="properties.code",
+                color=val_col,
+                color_continuous_scale=colorscale,
+                mapbox_style="open-street-map",
+                zoom=4.6,
+                center={"lat": 46.5, "lon": 2.3},
+                opacity=0.75,
+                hover_name="label",
+                hover_data={val_col: True, "code": False},
+                labels={val_col: val_label},
+                title=f"{map_metric} par département",
+            )
+            fig_map.update_layout(
+                height=520,
+                margin=dict(l=0, r=0, t=40, b=0),
+                coloraxis_colorbar=dict(title=val_label, thickness=12),
+                title_font_size=15,
+            )
+            st.plotly_chart(fig_map, use_container_width=True)
+        else:
+            st.info("Carte indisponible — GeoJSON non chargé ou données insuffisantes.")
+
+    st.markdown("---")
+    col_geo1, col_geo2 = st.columns(2)
+
+    with col_geo1:
+        if not dept_df.empty:
+            top_dept = dept_df.nlargest(15, "count")[["label", "count", "salaire"]].copy()
+            top_dept.columns = ["Département", "Ingénieurs", "Salaire médian (€)"]
+            fig_top = px.bar(
+                top_dept.sort_values("Ingénieurs"),
+                x="Ingénieurs", y="Département", orientation="h",
+                title="Top 15 départements — concentration d'ingénieurs",
+                color="Ingénieurs", color_continuous_scale="Blues",
+                text="Ingénieurs",
+            )
+            fig_top.update_traces(texttemplate="%{text:.0f}", textposition="outside")
+            fig_top.update_layout(showlegend=False, coloraxis_showscale=False, yaxis_title=None, height=480, margin=dict(l=0, r=40, t=40, b=0), title_font_size=14)
+            st.plotly_chart(fig_top, use_container_width=True)
+
+    with col_geo2:
+        idf_regions = ["Île-de-France"]
+        df["zone"] = df["region"].apply(
+            lambda r: "Île-de-France" if str(r) in idf_regions else "Province" if pd.notna(r) else None
+        )
+        zone_rows = []
+        for zone in ["Île-de-France", "Province"]:
+            zdf = df[df["zone"] == zone]
+            if zdf["poids"].sum() < 10:
+                continue
+            med = salaire_median_pondere(zdf)
+            n_tele = zdf.loc[zdf["teletravail"] == "Oui", "poids"].sum()
+            pct_tele = round(100 * n_tele / zdf["poids"].sum(), 1)
+            n_cadre = zdf.loc[zdf["cadre"] == "Oui", "poids"].sum()
+            pct_cadre = round(100 * n_cadre / zdf["poids"].sum(), 1)
+            zone_rows.append({"Zone": zone, "Salaire médian (€)": med, "Télétravail (%)": pct_tele, "Cadres (%)": pct_cadre})
+
+        if zone_rows:
+            zone_df = pd.DataFrame(zone_rows)
+            fig_zone = px.bar(
+                zone_df, x="Zone", y="Salaire médian (€)",
+                color="Zone", color_discrete_sequence=[COLORS["secondary"], COLORS["primary"]],
+                title="Île-de-France vs Province — salaire médian brut",
+                text="Salaire médian (€)",
+            )
+            fig_zone.update_traces(texttemplate="%{text:,.0f} €", textposition="outside")
+            fig_zone.update_layout(showlegend=False, height=260, margin=dict(l=0, r=0, t=40, b=0), title_font_size=14)
+            st.plotly_chart(fig_zone, use_container_width=True)
+
+            fig_zone2 = px.bar(
+                zone_df.melt(id_vars="Zone", value_vars=["Télétravail (%)", "Cadres (%)"]),
+                x="Zone", y="value", color="variable", barmode="group",
+                title="Télétravail & statut cadre — IDF vs Province",
+                text="value",
+                color_discrete_sequence=[COLORS["primary"], COLORS["secondary"]],
+                labels={"value": "%", "variable": ""},
+            )
+            fig_zone2.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+            fig_zone2.update_layout(height=260, margin=dict(l=0, r=0, t=40, b=0), title_font_size=14)
+            st.plotly_chart(fig_zone2, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("Top écoles d'ingénieurs par région de résidence")
+    ecole_region = (
+        df.groupby(["region", "ecole"], dropna=True)["poids"]
+        .sum()
+        .reset_index()
+    )
+    ecole_region = ecole_region.sort_values("poids", ascending=False)
+    top_regions_ecole = ecole_region.groupby("region").head(1).nlargest(12, "poids")
+    fig_er = px.bar(
+        top_regions_ecole.sort_values("poids"),
+        x="poids", y="region", color="ecole", orientation="h",
+        title="École la plus représentée par région (effectif pondéré)",
+        labels={"poids": "Effectif", "region": "", "ecole": "École"},
+        height=420,
+    )
+    fig_er.update_layout(margin=dict(l=0, r=0, t=40, b=0), title_font_size=14, legend=dict(orientation="h", y=-0.2))
+    st.plotly_chart(fig_er, use_container_width=True)
+
+
+# ─── TAB 8 : MARCHÉ & MOBILITÉ ───────────────────────────────────────────────
+
+with tab8:
+    st.markdown("## 📈 Marché de l'Emploi & Mobilité Professionnelle")
+
+    # KPIs
+    k1, k2, k3, k4 = st.columns(4)
+    total_w = df["poids"].sum()
+    with k1:
+        n_mob = df.loc[df["mobilite_5ans"] == "Oui", "poids"].sum()
+        st.metric("Mobilité sur 5 ans", f"{round(100 * n_mob / total_w, 1)} %", help="Ont changé d'emploi ou de poste dans les 5 dernières années")
+    with k2:
+        n_cr = df.loc[df["crainte_emploi"] == "Oui", "poids"].sum()
+        st.metric("Craignent de perdre leur emploi", f"{round(100 * n_cr / total_w, 1)} %")
+    with k3:
+        anc_med = df["anciennete"].median()
+        st.metric("Ancienneté médiane", f"{anc_med:.0f} ans" if not np.isnan(anc_med) else "N/A", help="Années écoulées depuis le diplôme")
+    with k4:
+        taille_order_present = [t for t in TAILLE_ORDER if t in df["taille"].dropna().unique()]
+        if taille_order_present:
+            ge_pct = round(100 * df.loc[df["taille"] == "GE (5 000 salariés et plus)", "poids"].sum() / total_w, 1)
+            st.metric("Dans un grand groupe (GE)", f"{ge_pct} %")
+
+    st.markdown("---")
+    col_m1, col_m2 = st.columns(2)
+
+    with col_m1:
+        mob_sect = []
+        for s, sdf in df.groupby("secteur", dropna=True):
+            total_s = sdf["poids"].sum()
+            if total_s < 50:
+                continue
+            n_oui = sdf.loc[sdf["mobilite_5ans"] == "Oui", "poids"].sum()
+            mob_sect.append({"Secteur": s, "% mobilité 5 ans": round(100 * n_oui / total_s, 1)})
+        if mob_sect:
+            mob_df = pd.DataFrame(mob_sect).sort_values("% mobilité 5 ans", ascending=False).head(12).sort_values("% mobilité 5 ans")
+            fig_mob = px.bar(
+                mob_df, x="% mobilité 5 ans", y="Secteur", orientation="h",
+                title="Mobilité professionnelle sur 5 ans par secteur",
+                color="% mobilité 5 ans", color_continuous_scale="Oranges",
+                text="% mobilité 5 ans",
+            )
+            fig_mob.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+            fig_mob.update_layout(showlegend=False, coloraxis_showscale=False, yaxis_title=None, height=420, margin=dict(l=0, r=40, t=40, b=0), title_font_size=14)
+            st.plotly_chart(fig_mob, use_container_width=True)
+
+    with col_m2:
+        cr_sect = []
+        for s, sdf in df.groupby("secteur", dropna=True):
+            total_s = sdf["poids"].sum()
+            if total_s < 50:
+                continue
+            n_cr = sdf.loc[sdf["crainte_emploi"] == "Oui", "poids"].sum()
+            cr_sect.append({"Secteur": s, "% crainte emploi": round(100 * n_cr / total_s, 1)})
+        if cr_sect:
+            cr_df = pd.DataFrame(cr_sect).sort_values("% crainte emploi", ascending=False).head(12).sort_values("% crainte emploi")
+            fig_cr = px.bar(
+                cr_df, x="% crainte emploi", y="Secteur", orientation="h",
+                title="Crainte de perte d'emploi par secteur",
+                color="% crainte emploi", color_continuous_scale="Reds",
+                text="% crainte emploi",
+            )
+            fig_cr.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+            fig_cr.update_layout(showlegend=False, coloraxis_showscale=False, yaxis_title=None, height=420, margin=dict(l=0, r=40, t=40, b=0), title_font_size=14)
+            st.plotly_chart(fig_cr, use_container_width=True)
+
+    st.markdown("---")
+    col_m3, col_m4 = st.columns(2)
+
+    with col_m3:
+        taille_order_present = [t for t in TAILLE_ORDER if t in df["taille"].dropna().unique()]
+        if taille_order_present:
+            fig_taille_dist = px.bar(
+                pd.DataFrame([
+                    {"Taille": t, "Effectif": df.loc[df["taille"] == t, "poids"].sum()}
+                    for t in taille_order_present
+                ]),
+                x="Taille", y="Effectif",
+                title="Distribution par taille d'entreprise",
+                color="Taille", color_discrete_sequence=px.colors.sequential.Blues[2:],
+                category_orders={"Taille": TAILLE_ORDER},
+                text="Effectif",
+            )
+            fig_taille_dist.update_traces(texttemplate="%{text:.0f}", textposition="outside")
+            fig_taille_dist.update_layout(showlegend=False, height=340, margin=dict(l=0, r=0, t=40, b=80), title_font_size=14)
+            fig_taille_dist.update_xaxes(tickangle=-20)
+            st.plotly_chart(fig_taille_dist, use_container_width=True)
+
+            # Mobilité by taille
+            mob_taille = []
+            for t in taille_order_present:
+                tdf = df[df["taille"] == t]
+                total_t = tdf["poids"].sum()
+                if total_t < 20:
+                    continue
+                n_oui = tdf.loc[tdf["mobilite_5ans"] == "Oui", "poids"].sum()
+                mob_taille.append({"Taille": t, "% mobilité": round(100 * n_oui / total_t, 1)})
+            if mob_taille:
+                fig_mob_taille = px.bar(
+                    pd.DataFrame(mob_taille),
+                    x="Taille", y="% mobilité",
+                    title="Mobilité sur 5 ans par taille d'entreprise",
+                    color_discrete_sequence=[COLORS["secondary"]],
+                    text="% mobilité",
+                    category_orders={"Taille": TAILLE_ORDER},
+                )
+                fig_mob_taille.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+                fig_mob_taille.update_layout(height=320, margin=dict(l=0, r=0, t=40, b=80), title_font_size=14)
+                fig_mob_taille.update_xaxes(tickangle=-20)
+                st.plotly_chart(fig_mob_taille, use_container_width=True)
+
+    with col_m4:
+        anc_sal_sub = df[df["anciennete"].between(0, 40)][["anciennete", "salaire_corrige", "genre", "poids"]].dropna()
+        if not anc_sal_sub.empty:
+            anc_sal_sub["Ancienneté"] = anc_sal_sub["anciennete"].astype(int)
+            anc_agg = (
+                anc_sal_sub.groupby(["Ancienneté", "genre"])
+                .apply(lambda g: salaire_median_pondere(g.rename(columns={"salaire_corrige": "salaire_corrige"})), include_groups=False)
+                .reset_index()
+            )
+            anc_agg.columns = ["Ancienneté", "Genre", "Salaire médian (€)"]
+            anc_agg = anc_agg[anc_agg["Genre"].isin(["Masculin", "Féminin"])].dropna()
+            if not anc_agg.empty:
+                anc_smooth = anc_agg.groupby(["Genre", pd.cut(anc_agg["Ancienneté"], bins=range(0, 42, 2))]).apply(
+                    lambda g: g["Salaire médian (€)"].mean(), include_groups=False
+                ).reset_index()
+                anc_smooth.columns = ["Genre", "Tranche", "Salaire médian (€)"]
+                anc_smooth["Ancienneté (centre)"] = anc_smooth["Tranche"].apply(lambda x: x.mid if hasattr(x, "mid") else np.nan)
+                anc_smooth = anc_smooth.dropna(subset=["Ancienneté (centre)", "Salaire médian (€)"])
+                fig_anc_g = px.line(
+                    anc_smooth.sort_values("Ancienneté (centre)"),
+                    x="Ancienneté (centre)", y="Salaire médian (€)",
+                    color="Genre",
+                    color_discrete_map=COLORS,
+                    title="Évolution salariale H/F selon l'ancienneté",
+                    markers=False,
+                    labels={"Ancienneté (centre)": "Années depuis le diplôme"},
+                )
+                fig_anc_g.update_layout(height=360, margin=dict(l=0, r=0, t=40, b=0), title_font_size=14, yaxis_tickformat=",.0f", yaxis_title="Salaire médian brut (€)")
+                st.plotly_chart(fig_anc_g, use_container_width=True)
+
+        st.plotly_chart(
+            salary_by_group_bar(df, "domaine_fonctionnel", "Salaire médian par domaine fonctionnel", top_n=12),
+            use_container_width=True,
+        )
