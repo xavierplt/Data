@@ -14,32 +14,48 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-PATH_2025 = r"c:\Users\xavpl\OneDrive\Documents\IESF\Data\OneDrive_1_17-05-2026\exp_Questionnaire 2025.xlsx"
-PATH_2024 = r"c:\Users\xavpl\OneDrive\Documents\IESF\Data\OneDrive_1_17-05-2026\exp_Questionnaire_2024.xlsx"
+PATH_2025 = r"C:\Users\duboi\Desktop\IESF\Data-main\exp_Questionnaire 2025.xlsx"
+PATH_2024 = r"C:\Users\duboi\Desktop\IESF\Data-main\exp_Questionnaire_2024.xlsx"
 
 # Columns to load from 2025 (by index → clean name)
 COLS_2025 = {
     2:   "diplome",
     12:  "ecole",
     14:  "annee_diplome",
+    27:  "autre_diplome",           # AB — a un autre diplôme Bac+5 (Oui/Non) ✅ vérifié
     51:  "annee_naissance",
     59:  "age",
     60:  "genre",
+    63:  "nombre_enfants",          # BL — nombre d'enfants (0..5, "+ de 5") ✅ vérifié
+    64:  "activites_associatives",  # BM — activités associatives (Oui/Non) ✅ vérifié
     67:  "dept_residence",
     69:  "region",
     78:  "activite",
     79:  "situation",
+    87:  "lieu_travail",           # où vous travailliez : France / Europe / Asie / Afrique / Amériques / Océanie
     93:  "dept_travail",
+    94:  "zone_travail",           # Ile de France ; Province ; Drom-Com (regroupement déjà fait par l'enquête)
     95:  "nature_entreprise",
     97:  "domaine_fonctionnel",
     99:  "taille",
-    101: "secteur",
+    100: "secteur_detail",         # CW — secteur d'activité détaillé (~35 catégories) ✅ vérifié
+    101: "secteur",                # CX — secteur regroupé (11 catégories) ✅ vérifié
+    114: "raison_choix_secteur",   # DK — pourquoi ce secteur ✅ vérifié
+    115: "service",                # DL — service / département d'emploi ✅ vérifié
     120: "cadre",
     121: "type_contrat",
-    122: "responsabilites",
+    122: "responsabilites",        # DS — responsabilités hiérarchiques (Oui/Non) ✅ vérifié
+    123: "nb_encadres",             # DT — nombre de personnes encadrées ✅ vérifié
+    125: "membre_codir",            # DV — membre Codir/Comex/CA (Oui/Non) ✅ vérifié
+    126: "resp_resultat_financier", # DW — responsable d'un résultat financier (Oui/Non) ✅ vérifié
+    130: "role_chef_projet",        # EA — chef de projet (Oui/Non) ✅ vérifié
+    131: "role_expert_technique",   # EB — expert technique (Oui/Non) ✅ vérifié
+    136: "expertise_reco",          # EG — expertise reconnue dans l'entreprise (Oui/Non) ✅ vérifié
     157: "annee_recrutement",
-    160: "crainte_emploi",
+    160: "crainte_emploi",          # FE — craint de perdre son emploi (Oui/Non) ✅ vérifié
+    166: "nbre_chomage",            # FK — nombre de périodes de chômage connues ✅ vérifié
     168: "mobilite_5ans",
+    172: "satisfaction_mobilite",   # FQ — satisfaction de la dernière mobilité (5 niveaux texte) ✅ vérifié
     211: "salaire_brut",
     216: "part_variable",
     217: "montant_variable",
@@ -49,11 +65,39 @@ COLS_2025 = {
     488: "type_ia",
     506: "competence_ia",
     551: "satisfaction",
+    # --- Sous-dimensions détaillées de satisfaction (échelle 1-5) ---------------
+    # ✅ Toutes vérifiées contre le texte réel des questions (row0) du fichier
+    # copie_claude.xlsx fourni. Il y en a 20 (553-572), pas 16 comme le
+    # suggérait idees_graphes.md.
+    553: "sat_securite_emploi",
+    554: "sat_interet_taches",
+    555: "sat_perspectives_carriere",
+    556: "sat_ambiance",
+    557: "sat_stress",                    # brut : plus haut = plus de stress perçu
+    558: "sat_charge_travail",            # brut : plus haut = charge perçue plus lourde
+    559: "sat_autonomie",
+    560: "sat_facilite_responsabilites",
+    561: "sat_sens_travail",
+    562: "sat_remuneration_pct",
+    563: "sat_equilibre_vie",
+    564: "sat_developpement_competences",
+    565: "sat_organisation",
+    566: "sat_strategie_entreprise",      # corrigé (était "sat_management")
+    567: "sat_gestion_rh",                # corrigé (était "sat_reconnaissance_hierarchie")
+    568: "sat_style_management",          # corrigé (était "sat_reconnaissance_pairs")
+    569: "sat_prise_en_compte_propositions",  # nouveau
+    570: "sat_reconnaissance_hierarchie",     # nouveau (la vraie colonne)
+    571: "sat_reconnaissance_pairs",          # nouveau (la vraie colonne)
+    572: "sat_formation",                     # nouveau
     665: "poids",
     666: "salaire_corrige",
 }
 
+# Colonnes de satisfaction détaillée réellement disponibles (utilisé par l'onglet Mentors)
+SATISFACTION_COLS = [c for c in COLS_2025.values() if c.startswith("sat_")]
+
 TAILLE_ORDER = ["TPE (1 - 49 salariés)", "PME (50 à 249 salariés)", "ETI (250 - 4999 salariés)", "GE (5 000 salariés et plus)"]
+
 
 
 def extract_dept_code(s):
@@ -171,6 +215,47 @@ def load_2025():
     )
     df["dept_travail_code"] = df["dept_travail"].apply(extract_dept_code)
     df["dept_residence_code"] = df["dept_residence"].apply(extract_dept_code)
+    for col in SATISFACTION_COLS:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    df["crainte_emploi_num"] = df["crainte_emploi"].map({"Oui": 1.0, "Non": 0.0})
+    df["membre_codir_num"] = df["membre_codir"].map({"Oui": 1.0, "Non": 0.0})
+    df["resp_resultat_financier_num"] = df["resp_resultat_financier"].map({"Oui": 1.0, "Non": 0.0})
+    df["responsabilites_num"] = df["responsabilites"].map({"Oui": 1.0, "Non": 0.0})
+    df["activites_associatives_num"] = df["activites_associatives"].map({"Oui": 1.0, "Non": 0.0})
+    df["expertise_reco_num"] = df["expertise_reco"].map({"Oui": 1.0, "Non": 0.0})
+    df["nb_encadres"] = pd.to_numeric(df["nb_encadres"], errors="coerce")
+    df.loc[df["nb_encadres"] < 0, "nb_encadres"] = np.nan
+    df.loc[df["nb_encadres"] > 2000, "nb_encadres"] = np.nan  # valeurs aberrantes
+    df["nbre_chomage"] = pd.to_numeric(df["nbre_chomage"], errors="coerce")
+    df.loc[df["nbre_chomage"] < 0, "nbre_chomage"] = np.nan
+
+    # Nombre d'enfants : réponse catégorielle "0;1;2;3;4;5;+ de 5" -> numérique (6 pour "+ de 5")
+    def _encode_nombre_enfants(v):
+        if pd.isna(v):
+            return np.nan
+        s = str(v).strip()
+        if s == "+ de 5":
+            return 6.0
+        try:
+            return float(s)
+        except ValueError:
+            return np.nan
+
+    df["nombre_enfants"] = df["nombre_enfants"].apply(_encode_nombre_enfants)
+
+    # Satisfaction de la dernière mobilité : échelle texte -> 1-5
+    SATISFACTION_MOBILITE_MAP = {
+        "Très insatisfait": 1, "Insatisfait": 2, "Ni satisfait ni insatisfait": 3,
+        "Satisfait": 4, "Très satisfait": 5,
+    }
+    df["satisfaction_mobilite_num"] = df["satisfaction_mobilite"].map(SATISFACTION_MOBILITE_MAP)
+
+    # Domaine professionnel : deux variantes de la même question selon le type
+    # d'employeur (domaine_fonctionnel pour certaines branches, service pour
+    # les autres) -> on les fusionne pour le filtrage/matching.
+    df["domaine_pro"] = df["domaine_fonctionnel"].fillna(df["service"])
+
     df["annee"] = 2025
     return df
 
@@ -324,6 +409,148 @@ def salary_by_group_bar(df, group_col, title, salary_col="salaire_corrige", top_
     return fig
 
 
+# ── Onglet Mentors : critères de matching ──────────────────────────────────────
+# Chaque critère référence une ou plusieurs colonnes, avec un "direction" :
+# +1 si "plus haut = mieux", -1 si "plus bas = mieux" (ex : moins de stress).
+CRITERES_MENTORS = {
+    "💶 Salaire":                    {"cols": ["salaire_corrige"],                                                              "direction": [1]},
+    "🎯 Sens / impact du travail":    {"cols": ["sat_sens_travail", "sat_interet_taches", "expertise_reco_num", "satisfaction_mobilite_num"], "direction": [1, 1, 1, 1]},
+    "⚖️ Équilibre vie pro/perso":     {"cols": ["sat_equilibre_vie", "activites_associatives_num"],                             "direction": [1, 1]},
+    "🛡️ Sécurité de l'emploi":       {"cols": ["sat_securite_emploi", "crainte_emploi_num", "nbre_chomage"],                    "direction": [1, -1, -1]},
+    "🧗 Perspectives / évolution":    {"cols": ["sat_perspectives_carriere", "sat_developpement_competences", "sat_formation"],  "direction": [1, 1, 1]},
+    "🤝 Ambiance & reconnaissance":   {"cols": ["sat_ambiance", "sat_reconnaissance_hierarchie", "sat_reconnaissance_pairs", "sat_prise_en_compte_propositions"], "direction": [1, 1, 1, 1]},
+    "🧘 Charge de travail légère":    {"cols": ["sat_charge_travail", "sat_stress", "membre_codir_num", "resp_resultat_financier_num"], "direction": [-1, -1, -1, -1]},
+    "🕊️ Autonomie":                  {"cols": ["sat_autonomie"],                                                                "direction": [1]},
+    "👥 Responsabilités managériales":{"cols": ["nb_encadres"],                                                                    "direction": [1]},
+    "🏛️ Qualité de l'organisation":  {"cols": ["sat_organisation", "sat_strategie_entreprise", "sat_gestion_rh", "sat_style_management"], "direction": [1, 1, 1, 1]},
+}
+
+
+
+def minmax01(series):
+    """Normalise une série numérique entre 0 et 1 sur son propre échantillon.
+    Les valeurs manquantes (non répondu) restent NaN — elles ne sont PAS
+    remplacées par une valeur neutre, pour que le score final puisse les
+    exclure proprement plutôt que de les traiter comme une vraie réponse."""
+    s = pd.to_numeric(series, errors="coerce")
+    lo, hi = s.min(), s.max()
+    if pd.isna(lo) or pd.isna(hi):
+        return s  # colonne entièrement vide : reste NaN partout
+    if hi == lo:
+        return pd.Series(np.where(s.notna(), 0.5, np.nan), index=series.index)
+    return (s - lo) / (hi - lo)
+
+
+def build_criteria_score(df, col, direction):
+    """Renvoie une série 0-1 (ou NaN si non répondu) pour une colonne donnée,
+    orientée dans le bon sens."""
+    scaled = minmax01(df[col])
+    return scaled if direction == 1 else (1 - scaled)
+
+
+def compute_match_scores(df, weights_normalises):
+    """Score de matching individuel pour chaque ligne de la cohorte.
+
+    weights_normalises : dict {nom_critère: poids entre 0 et 1, somme = 1}.
+
+    Gestion des questions optionnelles ("trous") : le score de chaque
+    répondant est calculé UNIQUEMENT sur les critères auxquels il/elle a
+    répondu, puis renormalisé sur le poids réellement couvert pour cette
+    personne — plutôt que de pénaliser une non-réponse comme un mauvais score.
+
+    Renvoie :
+      - total_score : score de compatibilité 0-1 par répondant (à afficher en %)
+      - detail      : DataFrame des scores 0-1 par critère (peut contenir NaN)
+      - coverage    : part du budget de poids (0-1) réellement couverte par
+                      les réponses de chaque personne — utile pour repérer les
+                      profils qui n'ont répondu qu'à une petite partie des
+                      critères demandés.
+    """
+    detail_cols = {}
+    for critere, w in weights_normalises.items():
+        cols = CRITERES_MENTORS[critere]["cols"]
+        directions = CRITERES_MENTORS[critere]["direction"]
+        sub_scores = [
+            build_criteria_score(df, c, d)
+            for c, d in zip(cols, directions)
+            if c in df.columns and df[c].notna().any()
+        ]
+        if not sub_scores:
+            continue
+        # .mean(axis=1, skipna=True) : moyenne des sous-questions répondues
+        # uniquement ; si aucune n'est répondue pour cette ligne -> NaN.
+        detail_cols[critere] = pd.concat(sub_scores, axis=1).mean(axis=1)
+
+    detail = pd.DataFrame(detail_cols, index=df.index)
+
+    if detail.empty:
+        return pd.Series(np.nan, index=df.index), detail, pd.Series(0.0, index=df.index)
+
+    weights = pd.Series(weights_normalises)[detail.columns]
+    # Poids appliqué par ligne : 0 là où le répondant n'a pas répondu à ce critère
+    weight_matrix = detail.notna().astype(float).mul(weights, axis=1)
+    coverage = weight_matrix.sum(axis=1)  # part du budget couverte, par personne
+    weighted_sum = detail.fillna(0.0).mul(weights, axis=1).sum(axis=1)
+
+    total_score = weighted_sum / coverage.replace(0, np.nan)
+
+    return total_score, detail, coverage
+
+
+# ── Curseurs de priorité à somme constante (budget de 100 points) ─────────────
+MENTORS_CRITERES_LIST = list(CRITERES_MENTORS.keys())
+MENTORS_BUDGET = 100
+
+
+def _mentors_slider_key(critere):
+    return f"mentors_w_{critere}"
+
+
+def init_mentors_weights():
+    """Initialise les curseurs à parts égales la première fois (somme = 100)."""
+    if "mentors_weights_init" not in st.session_state:
+        n = len(MENTORS_CRITERES_LIST)
+        base = MENTORS_BUDGET // n
+        remainder = MENTORS_BUDGET - base * n
+        for i, critere in enumerate(MENTORS_CRITERES_LIST):
+            val = base + (1 if i < remainder else 0)
+            st.session_state[_mentors_slider_key(critere)] = val
+        st.session_state["mentors_weights_init"] = True
+
+
+def rebalance_mentors_weights(changed_critere):
+    """Callback on_change : quand un curseur bouge, répartit la différence
+    sur les autres proportionnellement à leur valeur actuelle, pour que la
+    somme totale reste toujours égale à MENTORS_BUDGET."""
+    changed_key = _mentors_slider_key(changed_critere)
+    new_val = st.session_state[changed_key]
+    new_val = max(0, min(MENTORS_BUDGET, new_val))
+
+    autres = [c for c in MENTORS_CRITERES_LIST if c != changed_critere]
+    somme_autres_avant = sum(st.session_state.get(_mentors_slider_key(c), 0) for c in autres)
+    budget_restant = MENTORS_BUDGET - new_val
+
+    alloue = 0
+    for i, c in enumerate(autres):
+        key = _mentors_slider_key(c)
+        if i == len(autres) - 1:
+            # Dernier critère : on lui donne le reste pour garantir une somme exacte
+            st.session_state[key] = budget_restant - alloue
+        elif somme_autres_avant > 0:
+            w_actuel = st.session_state.get(key, 0)
+            part = round(budget_restant * w_actuel / somme_autres_avant)
+            part = max(0, min(part, budget_restant - alloue))
+            st.session_state[key] = part
+            alloue += part
+        else:
+            # Tous les autres curseurs étaient à 0 : répartition égale
+            part = budget_restant // len(autres)
+            st.session_state[key] = part
+            alloue += part
+
+    st.session_state[changed_key] = new_val
+
+
 # ── Sidebar filters ────────────────────────────────────────────────────────────
 
 st.sidebar.markdown("## 🔬 IESF — Filtres")
@@ -392,7 +619,7 @@ st.markdown("---")
 
 # ── Tabs ───────────────────────────────────────────────────────────────────────
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "👤 Profil",
     "🏢 Emploi & Secteurs",
     "💶 Rémunération",
@@ -401,6 +628,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🎯 Simulateur de Carrière",
     "🗺️ Géographie & Emploi",
     "📈 Marché & Mobilité",
+    "🧭 Mentors",
 ])
 
 # ─── TAB 1 : PROFIL ────────────────────────────────────────────────────────────
@@ -1301,3 +1529,163 @@ with tab8:
             salary_by_group_bar(df, "domaine_fonctionnel", "Salaire médian par domaine fonctionnel", top_n=12),
             use_container_width=True,
         )
+
+
+# ─── TAB 9 : MENTORS — TRAJECTOIRE PAR AFFINITÉ ──────────────────────────────
+
+with tab9:
+    st.markdown("## 🧭 Mentors — Trouve les profils qui te ressemblent... dans quelques années")
+    st.caption(
+        "Indique ce qui compte le plus pour toi, et découvre les profils de "
+        "l'enquête IESF plus expérimentés qui correspondent le mieux à tes priorités."
+    )
+
+    m_c1, m_c2 = st.columns(2)
+    with m_c1:
+        m_ecart = st.slider(
+            "Ancienneté visée pour les profils recherchés (années depuis le diplôme)",
+            min_value=0, max_value=40, value=(8, 15), key="mentors_ecart",
+            help="La fourchette d'ancienneté des profils que tu veux voir apparaître dans les résultats.",
+        )
+    with m_c2:
+        m_localisation = st.selectbox(
+            "Localisation (optionnel)",
+            ["Peu importe", "Île-de-France", "Province", "International"],
+            key="mentors_localisation",
+            help="Île-de-France / Province : lieu de travail en France. International : hors France.",
+        )
+
+    st.markdown("### Ce qui compte le plus pour toi")
+    st.caption(
+        "Répartis 100 points entre les critères : monter un curseur fait "
+        "automatiquement baisser les autres, pour que le total reste toujours à 100."
+    )
+
+    init_mentors_weights()
+
+    m_cols_sliders = st.columns(2)
+    for i, critere in enumerate(MENTORS_CRITERES_LIST):
+        with m_cols_sliders[i % 2]:
+            st.slider(
+                critere, 0, 100,
+                key=_mentors_slider_key(critere),
+                on_change=rebalance_mentors_weights,
+                args=(critere,),
+            )
+
+    m_weights_raw = {c: st.session_state[_mentors_slider_key(c)] for c in MENTORS_CRITERES_LIST}
+    m_total_w = sum(m_weights_raw.values())
+    st.caption(f"Total réparti : {m_total_w} / {MENTORS_BUDGET} points")
+
+    COVERAGE_MIN = 0.8  # seuil minimum de réponse aux critères pondérés
+
+    if m_total_w == 0:
+        st.warning("Mets au moins un curseur au-dessus de 0 pour lancer la recherche.")
+    else:
+        m_weights = {k: v / m_total_w for k, v in m_weights_raw.items()}
+
+        ecart_min, ecart_max = m_ecart
+        cohorte = df25[
+            (df25["anciennete"] >= ecart_min) & (df25["anciennete"] <= ecart_max)
+        ].copy()
+
+        if m_localisation == "Île-de-France":
+            cohorte = cohorte[cohorte["zone_travail"] == "Ile de France"]
+        elif m_localisation == "Province":
+            cohorte = cohorte[cohorte["zone_travail"] == "Province"]
+        elif m_localisation == "International":
+            cohorte = cohorte[cohorte["lieu_travail"] != "France (Métropolitaine et Outre-mer)"]
+
+        # --- Garde-fous qualité : on exige un minimum d'informations ---
+        # salaire corrigé obligatoire + au moins secteur OU domaine/service renseigné
+        cohorte = cohorte[cohorte["salaire_corrige"].notna()]
+        cohorte = cohorte[cohorte["secteur"].notna() | cohorte["domaine_pro"].notna()]
+
+        if len(cohorte) < 5:
+            st.error(
+                f"Seulement {len(cohorte)} répondant(s) avec salaire et secteur/domaine "
+                "renseignés pour cette fourchette d'ancienneté. Essaie de l'élargir."
+            )
+        else:
+            scores, detail, coverage = compute_match_scores(cohorte, m_weights)
+            cohorte = cohorte.assign(_match_score=scores, _coverage=coverage)
+
+            # --- Garde-fou qualité : au moins 80% des critères pondérés répondus ---
+            cohorte_ok = cohorte[cohorte["_coverage"] >= COVERAGE_MIN]
+
+            if len(cohorte_ok) < 5:
+                st.error(
+                    f"Seulement {len(cohorte_ok)} répondant(s) ont répondu à au moins "
+                    f"{int(COVERAGE_MIN * 100)}% des critères pondérés. Essaie d'élargir "
+                    "la fourchette d'ancienneté ou de réduire le nombre de critères "
+                    "sur lesquels tu mets du poids."
+                )
+            else:
+                st.caption(
+                    f"{len(cohorte_ok)} profils analysés (salaire et secteur/domaine "
+                    f"renseignés, au moins {int(COVERAGE_MIN * 100)}% des critères "
+                    "pondérés répondus)."
+                )
+
+                top_n = min(15, len(cohorte_ok))
+                top_matches = cohorte_ok.sort_values("_match_score", ascending=False).head(top_n)
+
+                mk1, mk2, mk3, mk4 = st.columns(4)
+                with mk1:
+                    compat_moyenne = top_matches["_match_score"].mean() * 100
+                    st.metric("Compatibilité moyenne", f"{compat_moyenne:.0f} %",
+                              help="Score de correspondance pondéré, calculé uniquement sur les critères auxquels chaque personne a répondu.")
+                with mk2:
+                    st.metric("% en télétravail", f"{pct(top_matches, 'teletravail', 'Oui')} %")
+                with mk3:
+                    st.metric("Ancienneté médiane (top matchs)", f"{top_matches['anciennete'].median():.0f} ans")
+                with mk4:
+                    couverture_moyenne = top_matches["_coverage"].mean() * 100
+                    st.metric("Fiabilité moyenne", f"{couverture_moyenne:.0f} %",
+                              help="Part de tes critères pondérés auxquels les profils affichés ont effectivement répondu.")
+
+                st.markdown("#### Portraits inspirants")
+                top_matches_affichage = top_matches.assign(
+                    compatibilite=(top_matches["_match_score"] * 100).round(0),
+                    fiabilite=(top_matches["_coverage"] * 100).round(0),
+                )
+
+                def _role_desc(row):
+                    cp = row.get("role_chef_projet") == "Oui"
+                    et = row.get("role_expert_technique") == "Oui"
+                    if cp and et:
+                        return "Chef de projet & Expert technique"
+                    if cp:
+                        return "Chef de projet"
+                    if et:
+                        return "Expert technique"
+                    return "Autre"
+
+                top_matches_affichage["role"] = top_matches_affichage.apply(_role_desc, axis=1)
+
+                colonnes_affichage = [
+                    c for c in [
+                        "compatibilite", "fiabilite", "ecole", "role", "secteur_detail",
+                        "domaine_pro", "nature_entreprise", "taille", "dept_residence",
+                        "salaire_corrige", "anciennete", "nb_encadres",
+                    ] if c in top_matches_affichage.columns
+                ]
+                st.dataframe(
+                    top_matches_affichage[colonnes_affichage]
+                    .rename(columns={
+                        "compatibilite": "Compatibilité (%)",
+                        "fiabilite": "Fiabilité (%)",
+                        "role": "Rôle",
+                        "secteur_detail": "secteur (détail)",
+                        "domaine_pro": "domaine_fonctionnel",
+                        "dept_residence": "département de résidence",
+                    })
+                    .sort_values("Compatibilité (%)", ascending=False)
+                    .reset_index(drop=True),
+                    use_container_width=True,
+                )
+                st.caption(
+                    "Compatibilité : à quel point ce profil correspond à tes priorités "
+                    "(calculé seulement sur ce qu'il/elle a répondu). Fiabilité : part "
+                    "de tes critères pondérés auxquels cette personne a répondu."
+                )
