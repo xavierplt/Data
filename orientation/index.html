@@ -7,23 +7,31 @@
 <meta name="description" content="Un parcours guidé pour situer sa carrière d'ingénieur et choisir la suite, fondé sur l'enquête IESF 2025.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
 <link rel="stylesheet" href="assets/app.css">
 </head>
-<body>
+<body data-view="home">
 
-<header class="topbar">
+<div class="scroll-progress" id="scroll-progress" aria-hidden="true"></div>
+
+<header class="topbar" id="topbar">
   <div class="topbar-inner">
     <a class="brand" href="#accueil" data-nav="home" aria-label="Boussole IESF, retour à l'accueil">
       <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
         <circle cx="16" cy="16" r="14.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
-        <path d="M16 5.5 L19.2 16 L16 26.5 L12.8 16 Z" fill="var(--blaze)"/>
-        <path d="M16 16 L19.2 16 L16 26.5 Z" fill="currentColor" opacity=".85"/>
+        <g class="brand-needle">
+          <path d="M16 5.5 L19.2 16 L12.8 16 Z" fill="var(--blaze)"/>
+          <path d="M16 26.5 L19.2 16 L12.8 16 Z" fill="currentColor"/>
+        </g>
       </svg>
       <span>Boussole <b>IESF</b></span>
     </a>
     <nav class="topnav" aria-label="Navigation principale">
       <a href="#methode" data-nav="method">Méthode</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Changer de thème">
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="currentColor"/><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></g></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" fill="currentColor"/></svg>
+      </button>
       <button class="btn btn-small" type="button" data-action="start">Commencer</button>
     </nav>
   </div>
@@ -33,44 +41,81 @@
 
   <!-- ============================================================ ACCUEIL -->
   <section class="view" id="view-home" aria-labelledby="home-title">
-    <div class="hero wrap">
-      <div class="hero-copy">
-        <p class="eyebrow">Orientation · Ingénieurs &amp; scientifiques</p>
-        <h1 id="home-title">Où en êtes-vous dans votre carrière, et où aller ensuite&nbsp;?</h1>
-        <p class="lede">Répondez à quelques questions sur votre situation. La Boussole vous situe parmi
-          <strong data-stat="actifs">26&nbsp;000</strong> ingénieurs en activité et vous propose des repères
-          et un plan d'action adaptés à votre étape de carrière.</p>
-        <div class="hero-actions">
-          <button class="btn btn-primary" type="button" data-action="start">Commencer mon parcours</button>
-          <button class="btn btn-ghost" type="button" data-action="example">Voir un exemple de bilan</button>
+
+    <div class="hero-band">
+      <canvas class="contours" data-contours="hero" aria-hidden="true"></canvas>
+      <svg class="compass" data-compass viewBox="-200 -200 400 400" aria-hidden="true"></svg>
+      <div class="hero wrap">
+        <div class="hero-copy">
+          <p class="eyebrow hero-eyebrow"><span class="beacon" aria-hidden="true"></span>Orientation · Ingénieurs &amp; scientifiques</p>
+          <h1 id="home-title" data-split>Où en êtes-vous dans votre carrière, et où aller ensuite&nbsp;?</h1>
+          <p class="lede">Répondez à quelques questions sur votre situation. La Boussole vous situe parmi
+            <strong data-stat="actifs">26&nbsp;000</strong> ingénieurs en activité et vous propose des repères
+            et un plan d'action adaptés à votre étape de carrière.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary btn-lg" type="button" data-action="start">Commencer mon parcours <span class="arr" aria-hidden="true">→</span></button>
+            <button class="btn btn-glass" type="button" data-action="example">Voir un exemple de bilan</button>
+          </div>
+          <p class="fine">5 minutes · Aucune donnée n'est envoyée : tout est calculé dans votre navigateur.</p>
         </div>
-        <p class="fine">5 minutes · Aucune donnée n'est envoyée : tout est calculé dans votre navigateur.</p>
+
+        <figure class="trail" aria-labelledby="trail-caption">
+          <figcaption id="trail-caption" class="trail-caption"><span>Salaire brut annuel médian</span><span class="mono">IESF 2025</span></figcaption>
+          <ol class="trail-list" id="trail-list"></ol>
+        </figure>
       </div>
-
-      <figure class="trail" aria-labelledby="trail-caption">
-        <figcaption id="trail-caption" class="trail-caption">Salaire brut annuel médian à chaque étape, <span class="mono">enquête IESF 2025</span></figcaption>
-        <ol class="trail-list" id="trail-list"></ol>
-      </figure>
+      <a class="scroll-cue" href="#chemin" data-scroll="chemin"><span>Découvrir le chemin</span><i aria-hidden="true"></i></a>
     </div>
 
-    <div class="wrap stages-intro">
-      <h2 class="section-title">Chaque étape a ses propres objectifs</h2>
-      <p class="section-sub">Un élève ingénieur cherche son premier stage. À quinze ans d'expérience, la question est plutôt de choisir entre management et expertise. La Boussole détecte votre étape et adapte les questions, les indicateurs et les conseils.</p>
+    <div class="wrap">
+      <div class="stats" aria-label="Chiffres clés de l'enquête">
+        <div class="stat"><span class="stat-v" id="stat-rep">31 920</span><span class="stat-l">réponses pondérées à l'enquête IESF 2025</span></div>
+        <div class="stat"><span class="stat-v" id="stat-emb">42 k€</span><span class="stat-l">salaire brut médian à l'embauche</span></div>
+        <div class="stat"><span class="stat-v" id="stat-top">103 k€</span><span class="stat-l">médiane après 35 ans de carrière</span></div>
+        <div class="stat"><span class="stat-v" id="stat-stage">25 %</span><span class="stat-l">des premiers postes trouvés à l'issue d'un stage</span></div>
+      </div>
+    </div>
+
+    <section class="journey wrap" id="chemin" aria-labelledby="journey-title">
+      <div class="journey-head">
+        <p class="eyebrow">Le chemin</p>
+        <h2 class="section-title" id="journey-title">Chaque étape a ses propres objectifs</h2>
+        <p class="section-sub">Un élève ingénieur cherche son premier stage. À quinze ans d'expérience, la question est plutôt de choisir entre management et expertise. La Boussole détecte votre étape et adapte les questions, les indicateurs et les conseils.</p>
+      </div>
+      <div class="journey-map" aria-hidden="true">
+        <svg class="journey-svg" viewBox="0 0 1000 120" preserveAspectRatio="none">
+          <path class="journey-bg" d="M0,60 C40,60 60,30 100,30 C170,30 230,90 300,90 C370,90 430,30 500,30 C570,30 630,90 700,90 C770,90 830,30 900,30 C940,30 960,60 1000,60"/>
+          <path class="journey-path" pathLength="1" d="M0,60 C40,60 60,30 100,30 C170,30 230,90 300,90 C370,90 430,30 500,30 C570,30 630,90 700,90 C770,90 830,30 900,30 C940,30 960,60 1000,60"/>
+        </svg>
+        <div class="journey-stations"><span style="left:10%;top:25%"></span><span style="left:30%;top:75%"></span><span style="left:50%;top:25%"></span><span style="left:70%;top:75%"></span><span style="left:90%;top:25%"></span></div>
+        <div class="walker"><span></span></div>
+      </div>
       <div class="stage-cards" id="stage-cards"></div>
-    </div>
+    </section>
 
-    <div class="wrap how">
-      <h2 class="section-title">Comment ça marche</h2>
+    <section class="how wrap" aria-labelledby="how-title">
+      <p class="eyebrow">En trois temps</p>
+      <h2 class="section-title" id="how-title">Comment ça marche</h2>
       <ol class="how-steps">
         <li><span class="how-n">1</span><div><h3>Vous décrivez votre situation</h3><p>Âge, formation, poste, ressenti et priorités. Chaque question est facultative sauf l'âge et la situation.</p></div></li>
         <li><span class="how-n">2</span><div><h3>On vous compare à des profils proches</h3><p>Même expérience, même secteur, même type d'entreprise et même région, à partir des réponses pondérées de l'enquête.</p></div></li>
         <li><span class="how-n">3</span><div><h3>Vous repartez avec un plan</h3><p>Positionnement salarial, leviers chiffrés, secteurs adaptés à vos priorités et actions concrètes pour les prochains mois.</p></div></li>
       </ol>
-    </div>
+    </section>
+
+    <section class="cta-band" aria-labelledby="cta-title">
+      <canvas class="contours" data-contours="cta" aria-hidden="true"></canvas>
+      <div class="wrap cta-inner">
+        <h2 id="cta-title">Prêt à faire le point&nbsp;?</h2>
+        <p>Cinq minutes pour savoir où vous en êtes et par où continuer.</p>
+        <button class="btn btn-primary btn-lg" type="button" data-action="start">Commencer mon parcours <span class="arr" aria-hidden="true">→</span></button>
+      </div>
+    </section>
   </section>
 
   <!-- ============================================================ PARCOURS -->
   <section class="view" id="view-wizard" hidden aria-labelledby="wizard-title">
+    <canvas class="contours contours-soft" data-contours="soft" aria-hidden="true"></canvas>
     <div class="wrap wizard">
       <div class="wizard-progress" aria-hidden="true">
         <ol id="progress-steps"></ol>
@@ -116,6 +161,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="data/stats.js"></script>
+<script src="assets/motion.js"></script>
 <script src="assets/app.js"></script>
 </body>
 </html>

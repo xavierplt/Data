@@ -159,6 +159,7 @@
   let answers = store.load()?.answers || {};
   let isExample = false;
   let stepIndex = 0;
+  let stepDir = "fwd";
 
   // ------------------------------------------------------------------ profil calculé
   function computeProfile(a) {
@@ -241,9 +242,11 @@
   function show(view, { push = true } = {}) {
     for (const [k, id] of Object.entries(VIEWS)) $("#" + id).hidden = k !== view;
     if (push && location.hash.slice(1) !== HASH[view]) history.pushState(null, "", "#" + HASH[view]);
+    document.body.dataset.view = view;
     window.scrollTo({ top: 0 });
     if (view === "method") renderMethod();
     if (view === "results" && careerChart.last) careerChart(...careerChart.last);
+    window.BoussoleMotion?.refresh(document);
   }
 
   function route() {
@@ -284,11 +287,17 @@
         <span class="trail-sal">${keur(v)}</span>
         <span class="trail-bar" aria-hidden="true"><span style="width:${(v / max) * 100}%"></span></span>
       </li>`).join("");
-    $("#stage-cards").innerHTML = STAGE_ORDER.map((k) => {
+    $("#stage-cards").innerHTML = STAGE_ORDER.map((k, i) => {
       const st = STAGES[k];
-      return `<article class="stage-card"><span class="stage-range">${st.range}</span><h3>${st.label}</h3>
+      return `<article class="stage-card${k === you ? " is-you" : ""}"><span class="stage-num">${String(i + 1).padStart(2, "0")}</span>
+        <span class="stage-range">${st.range}</span><h3>${st.label}</h3>
         <ul>${st.objectives.map(([t]) => `<li>${t}</li>`).join("")}</ul></article>`;
     }).join("");
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set("stat-rep", nf.format(S.meta.repondants));
+    set("stat-emb", keur(at(0)));
+    set("stat-top", keur(at(35)));
+    set("stat-stage", pct(S.buckets.e0.canal?.stage));
   }
 
   // ------------------------------------------------------------------ parcours
@@ -427,6 +436,11 @@
     $("#wizard-error").hidden = true;
     $("#btn-back").textContent = stepIndex === 0 ? "Accueil" : "Retour";
     $("#btn-next").textContent = stepIndex === list.length - 1 ? "Voir mon bilan" : "Continuer";
+    const card = $("#wizard-form");
+    card.dataset.dir = stepDir;
+    card.classList.remove("step-in");
+    void card.offsetWidth; // relance l'animation d'entrée
+    card.classList.add("step-in");
     enforceMax();
   }
 
@@ -484,6 +498,7 @@
     store.save({ answers });
     if (stepIndex < steps().length - 1) {
       stepIndex++;
+      stepDir = "fwd";
       renderStep();
       window.scrollTo({ top: 0 });
     } else {
@@ -495,6 +510,7 @@
   function startWizard(reset = false) {
     if (reset || isExample) { answers = reset ? {} : store.load()?.answers || {}; isExample = false; }
     stepIndex = 0;
+    stepDir = "fwd";
     renderStep();
     show("wizard");
   }
@@ -503,9 +519,12 @@
   function careerChart(el, opts) {
     careerChart.last = [el, opts];
     const { perso, you, youExp, startExp } = opts;
+    // Sans animation (ou déjà animé), la courbe est dessinée d'emblée ; sinon motion.js ouvre le masque.
+    const drawn = !document.documentElement.classList.contains("anim") || el.dataset.drawn === "1";
+    el.classList.add("chart-draw");
     // Dessiné à la largeur réelle du conteneur pour garder un texte lisible sur mobile.
     const W = Math.max(300, Math.round(el.clientWidth || 720)), narrow = W < 520;
-    const H = narrow ? 260 : 300, m = { l: 50, r: narrow ? 58 : 70, t: 22, b: 40 };
+    const H = narrow ? 260 : 300, m = { l: 50, r: narrow ? 74 : 92, t: 22, b: 40 };
     const data = S.curve;
     const xMax = 40;
     const yTop = Math.max(...data.map((d) => d.p75), you ?? 0, ...(perso ? data.map((d) => d.p50 * perso) : [0]));
@@ -532,13 +551,16 @@
           ${xTicks.map((e) => `<text x="${sx(e)}" y="${H - m.b + 18}" text-anchor="middle">${e}</text>`).join("")}
           <text x="${(m.l + W - m.r) / 2}" y="${H - 4}" text-anchor="middle">années depuis le diplôme</text>
         </g>
-        <path class="band" d="${band}"/>
-        <path class="median" d="${line(data.map((d) => [d.exp, d.p50]))}"/>
-        ${persoPts.length > 1 ? `<path class="perso" d="${line(persoPts)}"/>` : ""}
-        <text class="label route" x="${sx(last.exp) + 8}" y="${medLabelY + 4}">Médiane</text>
-        ${persoPts.length > 1 ? `<text class="label blaze" x="${sx(last.exp) + 8}" y="${persoLabelY + 4}">Votre profil</text>` : ""}
-        ${you != null ? `<circle class="you-dot" cx="${sx(youExp)}" cy="${youY}" r="7"/>
-          <text class="label blaze" x="${sx(youExp)}" y="${youY - 14}" text-anchor="middle">Vous</text>` : ""}
+        <defs><clipPath id="plot-clip"><rect class="plot-reveal" x="0" y="0" height="${H}" width="${drawn ? W : 0}"/></clipPath></defs>
+        <g clip-path="url(#plot-clip)">
+          <path class="band" d="${band}"/>
+          <path class="median" d="${line(data.map((d) => [d.exp, d.p50]))}"/>
+          ${persoPts.length > 1 ? `<path class="perso" d="${line(persoPts)}"/>` : ""}
+          <text class="label route" x="${sx(last.exp) + 8}" y="${medLabelY + 4}">Médiane</text>
+          ${persoPts.length > 1 ? `<text class="label blaze" x="${sx(last.exp) + 8}" y="${persoLabelY + 4}">Votre profil</text>` : ""}
+        </g>
+        ${you != null ? `<g class="you-mark"><circle class="you-halo" cx="${sx(youExp)}" cy="${youY}" r="7"/><circle class="you-dot" cx="${sx(youExp)}" cy="${youY}" r="7"/>
+          <text class="label blaze" x="${sx(youExp)}" y="${youY - 14}" text-anchor="middle">Vous</text></g>` : ""}
         <line class="cross" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" visibility="hidden"/>
         <rect class="hit" x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}"/>
       </svg>
@@ -969,7 +991,7 @@
     if (t.dataset.scroll) { e.preventDefault(); document.getElementById(t.dataset.scroll)?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (t.dataset.nav) { e.preventDefault(); show(t.dataset.nav); return; }
     if (act === "start") startWizard();
-    if (act === "back") { if (stepIndex === 0) show("home"); else { stepIndex--; renderStep(); } }
+    if (act === "back") { if (stepIndex === 0) show("home"); else { stepIndex--; stepDir = "back"; renderStep(); } }
     if (act === "example") { isExample = true; answers = { ...EXAMPLE }; renderResults(); show("results"); }
     if (act === "edit") startWizard();
     if (act === "restart") { store.clear(); isExample = false; answers = {}; startWizard(true); }
