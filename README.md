@@ -324,6 +324,32 @@ Chargé depuis GitHub avec `@st.cache_data(ttl=86400 * 7)` — une semaine de ca
 
 ---
 
+## Boussole IESF — site d'orientation
+
+Le dossier [`orientation/`](orientation/) contient un site statique (HTML/CSS/JS, sans dépendance ni serveur) qui guide l'utilisateur dans un parcours en 5 étapes (Vous → Formation → Poste → Ressenti → Cap) puis lui remet un bilan personnalisé.
+
+L'étape de carrière est déduite de l'âge, de la situation et de l'année de diplôme. Elle change les questions posées, les indicateurs et le plan d'action :
+
+| Étape | Critère | Enjeux mis en avant |
+|---|---|---|
+| En formation | situation « En études » | salaire d'embauche par secteur, stage, négociation |
+| Premier poste | 0–5 ans | positionnement salarial, première mobilité |
+| Confirmé | 6–15 ans | management vs expertise, accélération salariale |
+| Expérimenté | 16–30 ans | direction, sens, employabilité (IA) |
+| Senior | > 30 ans ou ≥ 60 ans | transmission, indépendance, fin de carrière |
+
+La situation « En recherche d'emploi » ajoute les canaux de retour à l'emploi observés dans l'enquête.
+
+**Données :** `orientation/build_data.py` lit l'Excel 2025 et produit `orientation/data/stats.js`, qui ne contient que des agrégats pondérés (≥ 30 répondants) ainsi que les coefficients d'une régression log-salaire (expérience, secteur, taille, zone, diplôme, fonction, encadrement, codir ; R² ≈ 0,55). Le genre est exclu de l'estimation et sert uniquement à mesurer l'écart F/H à profil égal.
+
+```bash
+python orientation/build_data.py       # régénère data/stats.js (~3 min de lecture Excel)
+```
+
+Ouvrir `orientation/index.html` directement dans un navigateur suffit. L'ancre `#exemple` affiche un bilan de démonstration.
+
+---
+
 ## Lancer l'application
 
 ```bash

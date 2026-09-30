@@ -14,8 +14,10 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-PATH_2025 = r"C:\Users\duboi\Desktop\IESF\Data-main\exp_Questionnaire 2025.xlsx"
-PATH_2024 = r"C:\Users\duboi\Desktop\IESF\Data-main\exp_Questionnaire_2024.xlsx"
+import os
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PATH_2025 = os.path.join(_BASE_DIR, "OneDrive_1_17-05-2026", "exp_Questionnaire 2025.xlsx")
+PATH_2024 = os.path.join(_BASE_DIR, "OneDrive_1_17-05-2026", "exp_Questionnaire_2024.xlsx")
 
 # Columns to load from 2025 (by index → clean name)
 COLS_2025 = {
