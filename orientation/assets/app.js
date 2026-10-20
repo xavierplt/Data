@@ -67,6 +67,72 @@
   };
   const RESSENTI = ["interet", "sens", "remuneration", "perspectives", "reco_hierarchie", "equilibre", "stress"];
 
+  const REGIONS = {
+    idf: "Île-de-France", ara: "Auvergne-Rhône-Alpes", occitanie: "Occitanie", nouvelle_aquitaine: "Nouvelle-Aquitaine",
+    paca: "Provence-Alpes-Côte d'Azur", grand_est: "Grand Est", hdf: "Hauts-de-France", pdl: "Pays de la Loire",
+    bretagne: "Bretagne", normandie: "Normandie", cvl: "Centre-Val de Loire", bfc: "Bourgogne-Franche-Comté",
+  };
+  const zoneOf = (region) => (!region ? null : region === "idf" ? "idf" : region === "etranger" ? "etranger" : "province");
+
+  // Familles d'employeurs (clés partagées avec build_entreprises.py) -> [libellé, secteur de l'enquête, icône].
+  const GROUPS = {
+    aero_defense: ["Aéronautique, spatial & défense", "industrie", "plane"],
+    mobilite: ["Automobile & ferroviaire", "industrie", "train"],
+    chimie_sante: ["Chimie, pharma & santé", "industrie", "flask"],
+    electronique: ["Électronique & électrotechnique", "industrie", "circuit"],
+    mecanique: ["Mécanique, métallurgie & matériaux", "industrie", "gear"],
+    energie: ["Énergie", "energie", "bolt"],
+    numerique: ["Numérique & logiciel", "numerique", "code"],
+    telecoms: ["Télécoms & réseaux", "telecoms", "antenna"],
+    ingenierie: ["Ingénierie, contrôle & essais", "ingenierie", "ruler"],
+    conseil: ["Conseil", "conseil", "briefcase"],
+    finance: ["Banque & assurance", "banque", "bank"],
+    construction: ["Construction & infrastructures", "btp", "building"],
+    eau_env: ["Eau, déchets & environnement", "environnement", "drop"],
+    agro: ["Agriculture & agroalimentaire", "agriculture", "leaf"],
+    transports_recherche: ["Recherche & opérateurs de transport", "tertiaire", "atom"],
+  };
+  const SIZES = { ge: ["Grand groupe", "5 000 salariés et plus"], eti: ["ETI", "250 à 4 999 salariés"], pme: ["PME", "50 à 249 salariés"] };
+  const NATURES = { any: "Peu importe", prive: "Privé", public: "Public" };
+  const ROLES = { any: "Peu importe", expert: "Expertise", manager: "Management" };
+  const LEVELS = ["Indifférent", "Important", "Essentiel"];
+  const TRANCHE_MID = { "21": 75, "22": 150, "31": 225, "32": 375, "41": 750, "42": 1500, "51": 3500, "52": 7500, "53": 12000 };
+  const TRANCHE_LABEL = { "21": "50 à 99", "22": "100 à 199", "31": "200 à 249", "32": "250 à 499", "41": "500 à 999", "42": "1 000 à 1 999", "51": "2 000 à 4 999", "52": "5 000 à 9 999", "53": "10 000 et plus" };
+  const PRIO_ICON = { remuneration: "coins", evolution: "growth", equilibre: "scale", sens: "heart", securite: "shield", ambiance: "people", autonomie: "compass", serenite: "wave", innovation: "chip" };
+
+  // Pictogrammes au trait, 24×24.
+  const ICONS = {
+    coins: '<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>',
+    growth: '<path d="M4 18l6-6 4 4 6-8"/><path d="M15 8h5v5"/>',
+    scale: '<path d="M12 4v16M7 20h10M5 7h14"/><path d="M5 7l-3 6a3 3 0 0 0 6 0zM19 7l-3 6a3 3 0 0 0 6 0z"/>',
+    heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+    shield: '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>',
+    people: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 14.5c3 0 6 2 6 5.5"/>',
+    compass: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
+    wave: '<path d="M3 10c3-4 6-4 9 0s6 4 9 0"/><path d="M3 16c3-4 6-4 9 0s6 4 9 0"/>',
+    chip: '<rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/>',
+    plane: '<path d="M21 15l-8-4V5a1 1 0 0 0-2 0v6l-8 4v2l8-2v4l-2 1.5V21l3-1 3 1v-1.5L13 18v-4l8 2z"/>',
+    train: '<rect x="6" y="3" width="12" height="13" rx="3"/><path d="M6 10h12M9 20l-2 2M15 20l2 2M9 13h.01M15 13h.01"/>',
+    flask: '<path d="M9 3h6M10 3v6L4.2 19a1.5 1.5 0 0 0 1.3 2h13a1.5 1.5 0 0 0 1.3-2L14 9V3"/><path d="M7 15h10"/>',
+    circuit: '<path d="M3 12h4l2-5 4 10 2-5h6"/>',
+    gear: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+    bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+    code: '<path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 4l-4 16"/>',
+    antenna: '<path d="M12 12v9M8 21h8"/><circle cx="12" cy="10" r="2"/><path d="M7.8 5.8a6 6 0 0 0 0 8.4M16.2 5.8a6 6 0 0 1 0 8.4"/>',
+    ruler: '<path d="M4 20L12 4l8 16"/><path d="M7 14h10"/><circle cx="12" cy="4" r="1.2"/>',
+    briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/>',
+    bank: '<path d="M3 10l9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 21h18"/>',
+    building: '<path d="M4 21V9l6-4v16M10 21h10V11l-6-3"/><path d="M14 13h2M14 17h2M6 13h2M6 17h2"/>',
+    drop: '<path d="M12 3s7 7.5 7 12a7 7 0 0 1-14 0c0-4.5 7-12 7-12z"/>',
+    leaf: '<path d="M5 21c0-9 5-15 15-16-1 10-7 15-15 16z"/><path d="M5 21l8-8"/>',
+    atom: '<circle cx="12" cy="12" r="1.6"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)"/>',
+    pin: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+    star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+    users: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>',
+  };
+  const icon = (name, cls = "ico") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ""}</svg>`;
+
   const PRIORITES = {
     remuneration: { label: "Bien gagner ma vie", m: ["sal", "sat.remuneration"] },
     evolution: { label: "Évoluer et apprendre", m: ["sat.perspectives", "sat.competences"] },
@@ -149,17 +215,48 @@
   };
 
   const EXAMPLE = {
-    age: 34, situation: "salarie", genre: "f", diplome: "ingenieur", anneeDiplome: NOW - 10,
-    secteur: "industrie", service: "rd", taille: "ge", zone: "province", manager: "non", codir: "non", ia: "oui", salaire: 52000,
+    age: 34, situation: "salarie", genre: "f", diplome: "ingenieur", anneeDiplome: NOW - 10, region: "occitanie", zone: "province",
+    secteur: "industrie", service: "rd", taille: "ge", manager: "non", codir: "non", ia: "oui", salaire: 52000,
     ressenti: { interet: 4, sens: 4, remuneration: 2, perspectives: 2, reco_hierarchie: 3, equilibre: 4, stress: 3 },
-    priorites: ["evolution", "remuneration", "equilibre"], projet: "manager",
   };
+  const EXAMPLE_SCENARIOS = [
+    { name: "Rester à Toulouse", weights: { evolution: 2, equilibre: 2, remuneration: 1 }, themes: ["aero_defense", "electronique"], sizes: ["ge", "eti"],
+      nature: "any", ess: false, regions: ["occitanie"], service: "rd", role: "manager", projet: "manager" },
+    { name: "Viser Paris", weights: { remuneration: 2, evolution: 1, innovation: 1 }, themes: ["aero_defense", "energie", "numerique"], sizes: ["ge"],
+      nature: "any", ess: false, regions: ["idf"], service: "rd", role: "manager", projet: "changer" },
+  ];
+
+  const blankScenario = (name, a = {}) => ({
+    name, weights: { evolution: 1, remuneration: 1, equilibre: 1 }, themes: [], sizes: [], nature: "any", ess: false,
+    regions: REGIONS[a.region] ? [a.region] : [], service: a.situation === "etudes" ? null : a.service || null, role: "any", projet: null,
+  });
 
   // ------------------------------------------------------------------ état
-  let answers = store.load()?.answers || {};
+  const saved = store.load() || {};
+  let answers = saved.answers || {};
+  let scenarios = Array.isArray(saved.scenarios) && saved.scenarios.length ? saved.scenarios : [];
+  let active = clamp(saved.active || 0, 0, Math.max(0, scenarios.length - 1));
+  let favorites = Array.isArray(saved.favorites) ? saved.favorites : [];
+  // Anciennes réponses (une seule liste de priorités) : converties en premier scénario.
+  if (!scenarios.length && answers.situation) {
+    const sc = blankScenario("Scénario A", answers);
+    if (answers.priorites?.length) sc.weights = Object.fromEntries(answers.priorites.map((p) => [p, 2]));
+    if (answers.projet) sc.projet = answers.projet;
+    scenarios = [sc];
+  }
   let isExample = false;
   let stepIndex = 0;
   let stepDir = "fwd";
+  const ui = { sort: "match", favOnly: false, shown: 12 };
+
+  function persist() {
+    if (!isExample) store.save({ answers, scenarios, active, favorites });
+  }
+  const current = () => scenarios[active] || (scenarios[0] = blankScenario("Scénario A", answers));
+  function ensureScenarios() {
+    if (!scenarios.length) scenarios = [blankScenario("Scénario A", answers)];
+    active = clamp(active, 0, scenarios.length - 1);
+  }
 
   // ------------------------------------------------------------------ profil calculé
   function computeProfile(a) {
@@ -211,10 +308,12 @@
 
   const coef = (f, level) => (level == null ? null : S.model.coefs[f]?.[level] ?? 0);
 
-  // Classement des secteurs selon les priorités (moyenne de z-scores).
-  function rankSectors(priorites, group) {
+  // Classement des secteurs selon les priorités pondérées (1 = important, 2 = essentiel) : moyenne pondérée de z-scores.
+  function rankSectors(weights, group) {
     const keys = Object.keys(SECTEURS).filter((k) => S.secteurs[k]);
-    const prios = priorites.length ? priorites : ["remuneration", "evolution", "equilibre"];
+    const given = Object.fromEntries(Object.entries(weights || {}).filter(([k, v]) => v > 0 && PRIORITES[k]));
+    const W = Object.keys(given).length ? given : { remuneration: 1, evolution: 1, equilibre: 1 };
+    const prios = Object.keys(W).sort((x, y) => W[y] - W[x]);
     const metricKeys = [...new Set(prios.flatMap((p) => PRIORITES[p].m))];
     const z = {};
     for (const mk of metricKeys) {
@@ -225,19 +324,108 @@
       const sd = Math.sqrt(sum(ok.map((v) => (v - mean) ** 2)) / ok.length) || 1;
       z[mk] = Object.fromEntries(keys.map((k, i) => [k, vals[i] == null ? 0 : (vals[i] - mean) / sd]));
     }
+    const totalW = sum(prios.map((p) => W[p]));
     const rows = keys.map((k) => {
-      const perPrio = prios.map((p) => sum(PRIORITES[p].m.map((mk) => z[mk][k])) / PRIORITES[p].m.length);
-      return { key: k, score: sum(perPrio) / perPrio.length };
+      const perPrio = prios.map((p) => W[p] * sum(PRIORITES[p].m.map((mk) => z[mk][k])) / PRIORITES[p].m.length);
+      return { key: k, score: sum(perPrio) / totalW };
     });
     rows.sort((a, b) => b.score - a.score);
     const lo = rows[rows.length - 1].score, hi = rows[0].score;
-    rows.forEach((r) => (r.norm = hi === lo ? 1 : 0.12 + 0.88 * (r.score - lo) / (hi - lo)));
-    return { rows, prios, metricKeys };
+    rows.forEach((r) => {
+      r.fit = hi === lo ? 1 : (r.score - lo) / (hi - lo);
+      r.norm = 0.12 + 0.88 * r.fit;
+    });
+    return { rows, prios, metricKeys, weights: W, isDefault: !Object.keys(given).length };
   }
 
+  // ------------------------------------------------------------------ employeurs : adéquation avec un scénario
+  const ENT = (window.IESF_ENTREPRISES && window.IESF_ENTREPRISES.entreprises) || [];
+  const ENT_BY_ID = new Map(ENT.map((c) => [c.id, c]));
+  const sizeOf = (c) => ({ GE: "ge", ETI: "eti", PME: "pme" }[c.c] || "pme");
+  const staffIn = (c, regions) => sum(regions.map((r) => c.r[r] || 0));
+
+  function scoreCompanies(sc, ranking) {
+    const fit = Object.fromEntries(ranking.rows.map((r) => [r.key, r.fit]));
+    return ENT.map((c) => {
+      let wsum = 0, acc = 0;
+      const why = [], miss = [];
+      const add = (w, v, ok, ko) => { wsum += w; acc += w * v; if (v >= 0.5 && ok) why.push(ok); if (v < 0.5 && ko) miss.push(ko); };
+      const f = fit[c.k] ?? 0.5;
+      add(3, f, f >= 0.6 ? "Secteur bien placé sur vos priorités" : null, f < 0.35 ? "Secteur moins bien noté sur vos priorités" : null);
+      if (sc.themes.length) add(3, sc.themes.includes(c.g) ? 1 : 0, GROUPS[c.g]?.[0], "Hors de vos domaines");
+      let local = 0;
+      if (sc.regions.length) {
+        const present = sc.regions.filter((r) => r in c.r);
+        local = staffIn(c, sc.regions);
+        const v = !present.length ? 0 : local >= 500 ? 1 : local >= 100 ? 0.85 : 0.7;
+        const where = present.map((r) => REGIONS[r]).slice(0, 2).join(", ");
+        add(2.5, v, present.length ? `Présent en ${where}${local >= 50 ? ` (≈ ${nf.format(Math.round(local / 50) * 50)} salariés)` : ""}` : null, "Pas d'établissement repéré dans vos régions");
+      }
+      if (sc.sizes.length) add(1.5, sc.sizes.includes(sizeOf(c)) ? 1 : 0, SIZES[sizeOf(c)][0], `${SIZES[sizeOf(c)][0]}, hors de vos tailles`);
+      if (sc.nature === "public") add(1.5, c.pub ? 1 : 0, "Employeur public", "Employeur privé");
+      if (sc.nature === "prive") add(1.5, c.pub ? 0 : 1, null, "Employeur public");
+      if (sc.ess) add(1.5, c.ess ? 1 : 0, "Économie sociale et solidaire", null);
+      return { c, score: Math.round((100 * acc) / wsum), why, miss, local };
+    }).sort((x, y) => y.score - x.score || (TRANCHE_MID[y.c.t] || 0) - (TRANCHE_MID[x.c.t] || 0) || y.local - x.local);
+  }
+
+  // Salaire visé dans un scénario : premier secteur du classement, avec la taille, la zone, la fonction et le rôle choisis.
+  function scenarioSalary(sc, ranking) {
+    const P = computeProfile(answers);
+    const etu = P.stage === "etudiant";
+    const top = ranking.rows[0].key;
+    const zones = [...new Set(sc.regions.map(zoneOf))];
+    const zone = sc.regions.length ? (zones.length === 1 ? zones[0] : null) : answers.zone;
+    const taille = sc.sizes.length ? (sc.sizes.length === 1 ? sc.sizes[0] : null) : answers.taille;
+    const manager = sc.role === "manager" ? "oui" : sc.role === "expert" || etu ? "non" : answers.manager;
+    const pred = predict({ ...answers, secteur: top, taille, zone, service: sc.service || answers.service, manager, codir: etu ? "non" : answers.codir }, P.bucket);
+    const now = etu ? null : answers.salaire || predict(answers, P.bucket).p50;
+    return { pred, top, now };
+  }
+
+  // Indicateurs moyens des trois premiers secteurs d'un classement.
+  function topSectorIndicators(ranking, group) {
+    const top = ranking.rows.slice(0, 3).map((r) => S.secteurs[r.key]);
+    const avg = (get) => { const v = top.map(get).filter((x) => x != null); return v.length ? sum(v) / v.length : null; };
+    return {
+      equilibre: avg((s) => s.sat.equilibre), sens: avg((s) => s.sat.sens), perspectives: avg((s) => s.sat.perspectives),
+      teletravail: avg((s) => s.teletravail), crainte: avg((s) => s.crainte), salaire: avg((s) => s.salParEtape?.[group] ?? s.salaire),
+    };
+  }
+
+  const initials = (name) => {
+    const acro = name.match(/\(([A-Z0-9&.]{2,8})\)/);
+    if (acro) return acro[1].replace(/\./g, "").slice(0, 3);
+    const words = name.split(/[\s-]+/).filter((w) => w.length > 2 && !/^(de|du|des|la|le|les|et|aux|pour)$/i.test(w));
+    return (words.length > 1 ? words[0][0] + words[1][0] : (words[0] || name).slice(0, 2)).toUpperCase();
+  };
+  const hueOf = (g) => (Object.keys(GROUPS).indexOf(g) * 47 + 200) % 360;
+
   // ------------------------------------------------------------------ navigation
-  const VIEWS = { home: "view-home", wizard: "view-wizard", results: "view-results", method: "view-method" };
-  const HASH = { home: "accueil", wizard: "parcours", results: "bilan", method: "methode" };
+  const VIEWS = { home: "view-home", wizard: "view-wizard", explore: "view-explore", compare: "view-compare", results: "view-results", method: "view-method" };
+  const HASH = { home: "accueil", wizard: "profil", explore: "criteres", compare: "comparer", results: "bilan", method: "methode" };
+
+  // Barre des phases, commune au parcours, à l'exploration, à la comparaison et au bilan.
+  function phaseBar(cur) {
+    const ok = !!answers.situation;
+    const items = [["wizard", "Votre profil", "Phase 1"], ["explore", "Ce qui compte", "Phase 2"], ["compare", "Comparer", "Vos scénarios"], ["results", "Bilan détaillé", "Synthèse"]];
+    const idx = items.findIndex(([v]) => v === cur);
+    return `<nav class="phasebar" aria-label="Étapes du parcours"><ol>${items.map(([v, l, s], i) => `
+      <li class="${i === idx ? "current" : ""}${ok && i < idx ? " done" : ""}">
+        <button type="button" data-goto="${v}" ${!ok && i > 0 ? "disabled" : ""} ${i === idx ? 'aria-current="step"' : ""}>
+          <span class="ph-n">${ok && i < idx ? "✓" : i + 1}</span><span class="ph-t"><small>${s}</small>${l}</span>
+        </button></li>`).join("")}</ol></nav>`;
+  }
+
+  function go(view) {
+    if (view === "wizard") return startWizard();
+    if (!answers.situation) return startWizard();
+    ensureScenarios();
+    if (view === "explore") renderExplore();
+    if (view === "compare") renderCompare();
+    if (view === "results") renderResults();
+    show(view);
+  }
 
   function show(view, { push = true } = {}) {
     for (const [k, id] of Object.entries(VIEWS)) $("#" + id).hidden = k !== view;
@@ -249,12 +437,23 @@
     window.BoussoleMotion?.refresh(document);
   }
 
+  function loadExample() {
+    isExample = true;
+    answers = { ...EXAMPLE };
+    scenarios = EXAMPLE_SCENARIOS.map((s) => JSON.parse(JSON.stringify(s)));
+    active = 0;
+    favorites = scoreCompanies(scenarios[0], rankSectors(scenarios[0].weights, "confirme")).slice(0, 2).map((x) => x.c.id);
+  }
+
   function route() {
     const h = location.hash.slice(1);
+    const has = !!answers.situation;
     if (h === "methode") show("method", { push: false });
-    else if (h === "exemple") { isExample = true; answers = { ...EXAMPLE }; renderResults(); show("results", { push: false }); }
-    else if (h === "bilan" && answers.situation) { renderResults(); show("results", { push: false }); }
-    else if (h === "parcours") { renderStep(); show("wizard", { push: false }); }
+    else if (h === "exemple") { loadExample(); renderExplore(); show("explore", { push: false }); }
+    else if ((h === "profil" || h === "parcours")) { renderStep(); show("wizard", { push: false }); }
+    else if (h === "criteres" && has) { ensureScenarios(); renderExplore(); show("explore", { push: false }); }
+    else if (h === "comparer" && has) { ensureScenarios(); renderCompare(); show("compare", { push: false }); }
+    else if (h === "bilan" && has) { ensureScenarios(); renderResults(); show("results", { push: false }); }
     else show("home", { push: false });
   }
 
@@ -301,13 +500,14 @@
   }
 
   // ------------------------------------------------------------------ parcours
+  // Phase 1 : uniquement le profil. Ce qui compte pour la personne se règle en phase 2.
   function steps() {
-    const list = ["vous", "formation", answers.situation === "etudes" ? "pistes" : "poste"];
+    const list = ["vous", "formation"];
+    if (answers.situation !== "etudes") list.push("poste");
     if (answers.situation === "salarie" || answers.situation === "independant") list.push("ressenti");
-    list.push("cap");
     return list;
   }
-  const STEP_LABEL = { vous: "Vous", formation: "Formation", poste: "Poste", pistes: "Pistes", ressenti: "Ressenti", cap: "Cap" };
+  const STEP_LABEL = { vous: "Vous", formation: "Formation", poste: "Poste", ressenti: "Ressenti" };
 
   const choiceGroup = (name, options, { type = "radio", value, compact = false, max } = {}) => `
     <div class="choices${compact ? " compact" : ""}" ${max ? `data-max="${max}"` : ""}>
@@ -330,7 +530,6 @@
 
   function stepContent(step) {
     const a = answers;
-    const stage = a.situation ? stageFromAnswers(a) : null;
     switch (step) {
       case "vous": return {
         eyebrow: "Commençons", title: "Qui êtes-vous ?",
@@ -339,11 +538,14 @@
           <div class="field-row">
             <div class="field"><label for="age">Votre âge</label>
               <div class="input-unit"><input class="input" id="age" name="age" type="number" inputmode="numeric" min="16" max="75" value="${esc(a.age ?? "")}" placeholder="Ex. 29" required><span>ans</span></div></div>
-            <div class="field"><label for="genre">Genre <span class="opt">facultatif</span></label>
-              ${select("genre", { f: "Femme", h: "Homme" }, a.genre)}
-              <p class="hint">Sert uniquement à vous informer des écarts de rémunération observés.</p></div>
+            <div class="field"><label for="region">Où vivez-vous ? <span class="opt">facultatif</span></label>
+              ${select("region", { ...REGIONS, etranger: "À l'étranger" }, a.region)}
+              <p class="hint">Sert à vous comparer à des ingénieurs de la même zone.</p></div>
           </div>
-          <fieldset class="field"><legend>Votre situation aujourd'hui</legend>${choiceGroup("situation", SITUATIONS, { value: a.situation })}</fieldset>`,
+          <fieldset class="field"><legend>Votre situation aujourd'hui</legend>${choiceGroup("situation", SITUATIONS, { value: a.situation })}</fieldset>
+          <div class="field" style="max-width:360px"><label for="genre">Genre <span class="opt">facultatif</span></label>
+            ${select("genre", { f: "Femme", h: "Homme" }, a.genre)}
+            <p class="hint">Sert uniquement à vous informer des écarts de rémunération observés.</p></div>`,
       };
       case "formation": {
         const etu = a.situation === "etudes";
@@ -357,17 +559,6 @@
               ${etu ? "" : `<p class="hint">Sans réponse, l'expérience est estimée à partir de l'âge (diplôme vers 24 ans).</p>`}</div>`,
         };
       }
-      case "pistes": return {
-        eyebrow: "Vos pistes", title: "Où vous voyez-vous ?",
-        intro: "Choisissez jusqu'à trois secteurs qui vous attirent. On comparera leurs salaires d'embauche et leurs conditions de travail.",
-        body: `
-          <fieldset class="field"><legend>Secteurs qui vous attirent <span class="opt">3 maximum</span></legend>
-            ${choiceGroup("secteursVises", Object.fromEntries(Object.entries(SECTEURS).map(([k, v]) => [k, v[0]])), { type: "checkbox", value: a.secteursVises, compact: true, max: 3 })}</fieldset>
-          <div class="field-row">
-            <div class="field"><label for="service">Métier visé</label>${select("service", SERVICES, a.service, "Pas encore décidé")}</div>
-            <div class="field"><label for="zone">Où souhaitez-vous travailler ?</label>${select("zone", ZONES, a.zone, "Pas de préférence")}</div>
-          </div>`,
-      };
       case "poste": {
         const rech = a.situation === "recherche";
         const indep = a.situation === "independant";
@@ -381,10 +572,9 @@
             </div>
             <div class="field-row">
               ${indep ? "" : `<div class="field"><label for="taille">Taille de l'entreprise</label>${select("taille", TAILLES, a.taille)}</div>`}
-              <div class="field"><label for="zone">Lieu de travail</label>${select("zone", ZONES, a.zone)}</div>
+              <fieldset class="field"><legend>Vous encadrez une équipe ?</legend>${choiceGroup("manager", ouiNon, { value: a.manager, compact: true })}</fieldset>
             </div>
             <div class="field-row">
-              <fieldset class="field"><legend>Vous encadrez une équipe ?</legend>${choiceGroup("manager", ouiNon, { value: a.manager, compact: true })}</fieldset>
               <fieldset class="field"><legend>Membre d'un comité de direction ?</legend>${choiceGroup("codir", ouiNon, { value: a.codir, compact: true })}</fieldset>
             </div>
             <div class="field-row">
@@ -408,18 +598,6 @@
             <div class="scale-legend"><span>1 = pas du tout satisfait</span><span>5 = très satisfait</span></div></div>`,
         };
       }
-      case "cap": {
-        const st = STAGES[stage];
-        return {
-          eyebrow: `Votre cap · ${st.label}`, title: "Qu'est-ce qui compte pour vous ?",
-          intro: "Vos priorités servent à classer les secteurs. Votre projet oriente le plan d'action.",
-          body: `
-            <fieldset class="field"><legend>Vos priorités <span class="opt">3 maximum</span></legend>
-              ${choiceGroup("priorites", Object.fromEntries(Object.entries(PRIORITES).map(([k, v]) => [k, v.label])), { type: "checkbox", value: a.priorites, compact: true, max: 3 })}</fieldset>
-            <fieldset class="field"><legend>Votre projet pour les prochaines années</legend>
-              ${choiceGroup("projet", st.projets, { value: a.projet && st.projets[a.projet] ? a.projet : undefined })}</fieldset>`,
-        };
-      }
     }
   }
 
@@ -429,13 +607,14 @@
     const step = list[stepIndex];
     const c = stepContent(step);
     $("#progress-steps").innerHTML = list.map((s, i) => `<li class="${i < stepIndex ? "done" : i === stepIndex ? "current" : ""}"><span>${STEP_LABEL[s]}</span></li>`).join("");
-    $("#wizard-eyebrow").textContent = `Étape ${stepIndex + 1} sur ${list.length} · ${c.eyebrow}`;
+    $("#wizard-phasebar").innerHTML = phaseBar("wizard");
+    $("#wizard-eyebrow").textContent = `Phase 1 · Étape ${stepIndex + 1} sur ${list.length} · ${c.eyebrow}`;
     $("#wizard-title").textContent = c.title;
     $("#wizard-intro").textContent = c.intro;
     $("#wizard-body").innerHTML = c.body;
     $("#wizard-error").hidden = true;
     $("#btn-back").textContent = stepIndex === 0 ? "Accueil" : "Retour";
-    $("#btn-next").textContent = stepIndex === list.length - 1 ? "Voir mon bilan" : "Continuer";
+    $("#btn-next").innerHTML = stepIndex === list.length - 1 ? 'Phase 2 : ce qui compte pour vous <span class="arr" aria-hidden="true">→</span>' : "Continuer";
     const card = $("#wizard-form");
     card.dataset.dir = stepDir;
     card.classList.remove("step-in");
@@ -460,15 +639,13 @@
     const num = (k) => (fd.get(k) === "" || fd.get(k) == null ? null : Number(fd.get(k)));
     const str = (k) => fd.get(k) || null;
     const next = { ...answers };
-    if (step === "vous") Object.assign(next, { age: num("age"), genre: str("genre"), situation: str("situation") });
+    if (step === "vous") Object.assign(next, { age: num("age"), genre: str("genre"), situation: str("situation"), region: str("region"), zone: zoneOf(str("region")) });
     if (step === "formation") Object.assign(next, { diplome: str("diplome"), anneeDiplome: num("anneeDiplome") });
-    if (step === "pistes") Object.assign(next, { secteursVises: fd.getAll("secteursVises"), service: str("service"), zone: str("zone") });
     if (step === "poste") Object.assign(next, {
-      secteur: str("secteur"), service: str("service"), taille: str("taille"), zone: str("zone"),
+      secteur: str("secteur"), service: str("service"), taille: str("taille"),
       manager: str("manager"), codir: str("codir"), ia: str("ia"), salaire: num("salaire"),
     });
     if (step === "ressenti") next.ressenti = Object.fromEntries(RESSENTI.map((d) => [d, num("r-" + d)]).filter(([, v]) => v));
-    if (step === "cap") Object.assign(next, { priorites: fd.getAll("priorites"), projet: str("projet") });
     return next;
   }
 
@@ -495,24 +672,367 @@
     if (err) { const el = $("#wizard-error"); el.textContent = err; el.hidden = false; return; }
     answers = next;
     isExample = false;
-    store.save({ answers });
     if (stepIndex < steps().length - 1) {
+      persist();
       stepIndex++;
       stepDir = "fwd";
       renderStep();
       window.scrollTo({ top: 0 });
     } else {
-      renderResults();
-      show("results");
+      ensureScenarios();
+      persist();
+      renderExplore({ intro: true });
+      show("explore");
     }
   }
 
   function startWizard(reset = false) {
-    if (reset || isExample) { answers = reset ? {} : store.load()?.answers || {}; isExample = false; }
+    if (reset || isExample) {
+      const s = reset ? {} : store.load() || {};
+      answers = s.answers || {};
+      scenarios = s.scenarios || [];
+      active = s.active || 0;
+      favorites = s.favorites || [];
+      isExample = false;
+    }
     stepIndex = 0;
     stepDir = "fwd";
     renderStep();
     show("wizard");
+  }
+
+  // ------------------------------------------------------------------ phase 2 : ce qui compte (critères en direct)
+  const setOn = (el, on) => { el.classList.toggle("is-on", on); el.setAttribute("aria-pressed", String(on)); };
+  const toggleIn = (arr, v) => { const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); };
+
+  function profileCard() {
+    const a = answers;
+    const P = computeProfile(a);
+    const etu = P.stage === "etudiant";
+    const pred = etu ? null : predict(a, P.bucket);
+    const pctile = a.salaire && pred ? percentileOf(a.salaire, pred, P.bucket) : null;
+    const lines = [
+      a.age ? `${a.age} ans` : null, etu ? "En formation" : `${P.exp} an${P.exp > 1 ? "s" : ""} d'expérience`,
+      a.diplome ? DIPLOMES[a.diplome][0] : null, a.secteur ? SECTEURS[a.secteur][0] : null, a.service ? SERVICES[a.service] : null,
+      a.region ? REGIONS[a.region] || "À l'étranger" : null,
+    ].filter(Boolean);
+    return `<div class="pcard">
+      <div class="pcard-top"><span class="pcard-eyebrow">Phase 1 · Votre profil</span><button type="button" class="link-btn" data-goto="wizard">Modifier</button></div>
+      <div class="pcard-stage"><span class="stage-chip">${esc(P.st.label)}</span>${a.situation === "recherche" ? '<span class="tag">En recherche d\'emploi</span>' : ""}</div>
+      <p class="pcard-lines">${lines.map(esc).join(" · ")}</p>
+      ${pred ? `<div class="pcard-sal"><span>Fourchette de vos pairs aujourd'hui</span><b>${keur(pred.p25)} – ${keur(pred.p75)}</b>${pctile != null ? `<em>Votre salaire : ${Math.round(pctile * 100)}<sup>e</sup> centile</em>` : ""}</div>` : ""}
+    </div>`;
+  }
+
+  function scenarioBar(where) {
+    const L = "ABC";
+    return `<div class="sc-bar">
+      <div class="sc-tabs" role="tablist" aria-label="Vos scénarios">
+        ${scenarios.map((s, i) => `<button type="button" role="tab" class="sc-tab${i === active ? " is-active" : ""}" aria-selected="${i === active}" data-sc="${i}">
+          <span class="sc-letter">${L[i]}</span><span class="sc-name">${esc(s.name)}</span></button>`).join("")}
+        ${scenarios.length < 3 ? `<button type="button" class="sc-add" data-action="sc-add"><span aria-hidden="true">+</span> Nouveau scénario</button>` : ""}
+      </div>
+      <div class="sc-tools">
+        ${where === "explore"
+          ? `<label class="sc-rename" for="sc-name"><span class="sr-only">Nom du scénario</span><input class="input" id="sc-name" value="${esc(current().name)}" maxlength="40"></label>
+             ${scenarios.length > 1 ? `<button type="button" class="btn btn-ghost" data-action="sc-delete">Supprimer</button>` : ""}
+             <button type="button" class="btn btn-primary" data-goto="compare">Comparer${scenarios.length > 1 ? ` les ${scenarios.length} scénarios` : ""} <span class="arr" aria-hidden="true">→</span></button>`
+          : `<button type="button" class="btn btn-ghost" data-goto="explore">Ajuster les critères</button>
+             <button type="button" class="btn btn-primary" data-goto="results">Bilan détaillé <span class="arr" aria-hidden="true">→</span></button>`}
+      </div>
+    </div>`;
+  }
+
+  function criteriaHtml(P) {
+    const g = (id, title, hint, body) => `<section class="crit-group" id="cg-${id}">
+      <header><h2>${title} <span class="cg-count" data-count="${id}"></span></h2><p>${hint}</p></header>${body}</section>`;
+    return [
+      g("prio", "Vos priorités", "Touchez une carte pour régler son importance : indifférent, important, essentiel.",
+        `<div class="prio-grid">${Object.entries(PRIORITES).map(([k, p]) => `
+          <button type="button" class="prio-tile" data-prio="${k}">${icon(PRIO_ICON[k], "pt-ico")}<b>${esc(p.label)}</b>
+            <span class="pt-lvl" aria-hidden="true"><i></i><i></i></span><small class="pt-txt"></small></button>`).join("")}</div>`),
+      g("dom", "Les domaines qui vous attirent", "Aucun choix = tous les domaines.",
+        `<div class="dom-grid">${Object.entries(GROUPS).map(([k, [label, , ic]]) => `
+          <button type="button" class="dom-tile" data-dom="${k}" style="--h:${hueOf(k)}">${icon(ic, "dom-ico")}<span>${esc(label)}</span></button>`).join("")}</div>`),
+      g("emp", "Le type d'employeur", "Taille, statut et valeurs.",
+        `<div class="chip-row">${Object.entries(SIZES).map(([k, [l, s]]) => `<button type="button" class="chip" data-size="${k}"><b>${l}</b><small>${s}</small></button>`).join("")}</div>
+         <div class="seg" role="group" aria-label="Public ou privé">${Object.entries(NATURES).map(([k, l]) => `<button type="button" data-nature="${k}">${l}</button>`).join("")}</div>
+         <button type="button" class="chip chip-wide" data-ess="">${icon("heart", "ico-s")}<b>Économie sociale et solidaire</b><small>Coopératives, mutuelles</small></button>`),
+      g("reg", "Où voulez-vous travailler ?", "Les employeurs implantés dans ces régions passent devant.",
+        `<div class="reg-grid"><button type="button" class="chip" data-region=""><b>Toute la France</b></button>${Object.entries(REGIONS).map(([k, l]) => `<button type="button" class="chip" data-region="${k}"><b>${esc(l)}</b></button>`).join("")}</div>`),
+      g("role", "Le poste visé", "Change le salaire visé de ce scénario.",
+        `<div class="seg" role="group" aria-label="Rôle visé">${Object.entries(ROLES).map(([k, l]) => `<button type="button" data-role="${k}">${l}</button>`).join("")}</div>
+         <label class="field" for="sc-service"><span class="fl">Métier</span>${select("sc-service", SERVICES, current().service, "Pas de préférence")}</label>`),
+      g("projet", "Votre projet", `Propositions adaptées à votre étape : ${esc(P.st.label.toLowerCase())}.`,
+        `<div class="chip-row">${Object.entries(P.st.projets).map(([k, l]) => `<button type="button" class="chip" data-projet="${k}"><b>${esc(l)}</b></button>`).join("")}</div>`),
+    ].join("");
+  }
+
+  function syncCriteria() {
+    const sc = current();
+    $$(".prio-tile").forEach((el) => {
+      const w = sc.weights[el.dataset.prio] || 0;
+      el.dataset.lvl = w;
+      el.setAttribute("aria-label", `${PRIORITES[el.dataset.prio].label} : ${LEVELS[w]}`);
+      $(".pt-txt", el).textContent = LEVELS[w];
+    });
+    $$(".dom-tile").forEach((el) => setOn(el, sc.themes.includes(el.dataset.dom)));
+    $$("[data-size]").forEach((el) => setOn(el, sc.sizes.includes(el.dataset.size)));
+    $$("[data-nature]").forEach((el) => setOn(el, sc.nature === el.dataset.nature));
+    $$("[data-ess]").forEach((el) => setOn(el, !!sc.ess));
+    $$("[data-region]").forEach((el) => setOn(el, el.dataset.region ? sc.regions.includes(el.dataset.region) : !sc.regions.length));
+    $$("[data-role]").forEach((el) => setOn(el, sc.role === el.dataset.role));
+    $$("[data-projet]").forEach((el) => setOn(el, sc.projet === el.dataset.projet));
+    const nPrio = Object.values(sc.weights).filter((w) => w > 0).length;
+    const counts = {
+      prio: nPrio ? `${nPrio} retenue${nPrio > 1 ? "s" : ""}` : "par défaut", dom: sc.themes.length ? String(sc.themes.length) : "tous",
+      emp: [sc.sizes.length, sc.nature !== "any", sc.ess].filter(Boolean).length || "", reg: sc.regions.length || "France",
+      role: sc.role !== "any" ? ROLES[sc.role] : "", projet: sc.projet ? "1" : "",
+    };
+    $$("[data-count]").forEach((el) => { el.textContent = counts[el.dataset.count] ?? ""; el.hidden = !el.textContent; });
+  }
+
+  function renderExplore({ intro = false } = {}) {
+    ensureScenarios();
+    const P = computeProfile(answers);
+    $("#view-explore").innerHTML = `
+      <div class="wrap explore${intro ? " is-intro" : ""}">
+        ${phaseBar("explore")}
+        ${isExample ? `<p class="example-flag">Exemple fictif : une ingénieure R&D de 34 ans à Toulouse, avec deux scénarios à comparer. <button type="button" class="link-btn" data-action="restart">Faire mon propre parcours</button></p>` : ""}
+        <header class="ex-head">
+          <p class="eyebrow">Phase 2 · Ce qui compte pour vous</p>
+          <h1 id="explore-title">Réglez vos critères, les résultats suivent</h1>
+          <p class="lede">Chaque changement met à jour les secteurs et les employeurs proposés. Créez plusieurs scénarios pour comparer vos options.</p>
+        </header>
+        ${scenarioBar("explore")}
+        <div class="ex-grid">
+          <aside class="crit" aria-label="Vos critères">${profileCard()}${criteriaHtml(P)}</aside>
+          <div class="out" id="outcomes" aria-live="polite"></div>
+        </div>
+        <button type="button" class="peek" id="peek" data-scroll="outcomes" aria-label="Voir les résultats"></button>
+      </div>`;
+    syncCriteria();
+    renderOutcomes();
+  }
+
+  function sectorCard(r, i, ranking, group) {
+    const s = S.secteurs[r.key];
+    const ms = [...new Set(ranking.prios.map((p) => PRIORITES[p].m[0]))].slice(0, 3);
+    return `<article class="sec-card" data-flip="s-${r.key}">
+      <div class="sec-top"><span class="sec-rank">${i + 1}</span><h3>${esc(SECTEURS[r.key][0])}</h3></div>
+      <div class="fit" aria-hidden="true"><span style="width:${Math.round(r.norm * 100)}%"></span></div>
+      <dl>${ms.map((mk) => { const M = metric(mk); const v = M.get(s, group); return `<div><dt>${esc(M.label)}</dt><dd>${v == null ? "—" : M.fmt(v)}</dd></div>`; }).join("")}</dl>
+    </article>`;
+  }
+
+  function companyCard({ c, score, why, miss }) {
+    const P = computeProfile(answers);
+    const s = S.secteurs[c.k];
+    const fav = favorites.includes(c.id);
+    const nReg = Object.keys(c.r).length;
+    const cls = score >= 75 ? "hi" : score >= 50 ? "mid" : "lo";
+    const grp = GROUPS[c.g] || ["", "", "chip"];
+    return `<article class="co-card" data-flip="c-${c.id}">
+      <div class="co-top">
+        <span class="mono-tile" style="--h:${hueOf(c.g)}" aria-hidden="true">${esc(initials(c.n))}</span>
+        <div class="co-id"><h3 title="${esc(c.n)}">${esc(c.n)}</h3>
+          <p>${icon("pin", "ico-s")}${esc(c.v || "")}${nReg > 1 ? ` · ${nReg} régions` : ""}</p></div>
+        <div class="ring ${cls}" role="img" aria-label="Adéquation ${score} %"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="ring-bg" cx="18" cy="18" r="15.9"/><circle class="ring-fg" cx="18" cy="18" r="15.9" pathLength="100" stroke-dasharray="${score} 100"/></svg><b>${score}</b></div>
+      </div>
+      <div class="co-tags"><span class="tag">${icon(grp[2], "ico-s")}${esc(grp[0])}</span><span class="tag">${SIZES[sizeOf(c)][0]} · ${TRANCHE_LABEL[c.t] || "?"} sal.</span>${c.ess ? '<span class="tag ess">ESS</span>' : ""}${c.pub ? '<span class="tag pub">Public</span>' : ""}</div>
+      <ul class="co-why">${why.slice(0, 3).map((w) => `<li>${esc(w)}</li>`).join("")}${miss.slice(0, 1).map((w) => `<li class="miss">${esc(w)}</li>`).join("")}</ul>
+      <div class="co-foot">
+        <span class="co-stat"><b>${keur(s?.salParEtape?.[P.group] ?? s?.salaire)}</b> médiane du secteur à votre étape</span>
+        <div class="co-actions">
+          <button type="button" class="fav-btn${fav ? " is-on" : ""}" data-fav="${c.id}" aria-pressed="${fav}" aria-label="${fav ? "Retirer des favoris" : "Ajouter aux favoris"}">${icon("star")}</button>
+          <a class="co-link" href="https://annuaire-entreprises.data.gouv.fr/entreprise/${c.id}" target="_blank" rel="noopener">Fiche officielle ↗</a>
+        </div>
+      </div>
+    </article>`;
+  }
+
+  // Animation FLIP : les cartes glissent vers leur nouvelle place quand le classement change.
+  function flipFirst(root) {
+    const m = new Map();
+    $$("[data-flip]", root).forEach((el) => m.set(el.dataset.flip, el.getBoundingClientRect()));
+    return m;
+  }
+  function flipLast(root, first) {
+    if (!document.documentElement.classList.contains("anim") || !first.size) return;
+    $$("[data-flip]", root).forEach((el) => {
+      const a = first.get(el.dataset.flip), b = el.getBoundingClientRect();
+      if (a) {
+        const dx = a.left - b.left, dy = a.top - b.top;
+        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: 480, easing: "cubic-bezier(.2,.8,.2,1)" });
+      } else el.animate([{ opacity: 0, transform: "translateY(10px) scale(.97)" }, { opacity: 1, transform: "none" }], { duration: 380, easing: "ease-out" });
+    });
+  }
+
+  function renderOutcomes() {
+    const box = $("#outcomes");
+    if (!box) return;
+    const sc = current();
+    const P = computeProfile(answers);
+    const ranking = rankSectors(sc.weights, P.group);
+    const scored = scoreCompanies(sc, ranking);
+    const sal = scenarioSalary(sc, ranking);
+    const strong = scored.filter((x) => x.score >= 70).length;
+    let list = ui.favOnly ? scored.filter((x) => favorites.includes(x.c.id)) : scored;
+    if (ui.sort === "size") list = [...list].sort((x, y) => (TRANCHE_MID[y.c.t] || 0) - (TRANCHE_MID[x.c.t] || 0) || y.score - x.score);
+    if (ui.sort === "local") list = [...list].sort((x, y) => y.local - x.local || y.score - x.score);
+    const shown = list.slice(0, ui.shown);
+    const first = flipFirst(box);
+    const delta = sal.now ? sal.pred.p50 / sal.now - 1 : null;
+    box.innerHTML = `
+      <div class="snap">
+        <div class="snap-tile snap-main">
+          <span class="snap-l">${icon("coins", "ico-s")}Salaire visé dans ce scénario</span>
+          <b class="snap-v">${keur(sal.pred.p50)}</b>
+          <span class="snap-sub">50 % entre ${keur(sal.pred.p25)} et ${keur(sal.pred.p75)}</span>
+          ${delta != null ? `<span class="snap-delta ${delta >= 0 ? "up" : "down"}">${signed(delta)} par rapport à ${answers.salaire ? "votre salaire" : "votre situation estimée"}</span>` : ""}
+        </div>
+        <div class="snap-tile"><span class="snap-l">${icon("target", "ico-s")}Secteur n° 1</span><b class="snap-v snap-v-s">${esc(SECTEURS[ranking.rows[0].key][0])}</b>
+          <span class="snap-sub">puis ${ranking.rows.slice(1, 3).map((r) => esc(SECTEURS[r.key][0])).join(" et ")}</span></div>
+        <div class="snap-tile"><span class="snap-l">${icon("users", "ico-s")}Employeurs très compatibles</span><b class="snap-v">${nf.format(strong)}</b>
+          <span class="snap-sub">adéquation de 70 % ou plus, sur ${nf.format(ENT.length)}</span></div>
+      </div>
+      <section class="out-sec" aria-labelledby="sec-title">
+        <div class="out-h"><h2 id="sec-title">Secteurs en tête</h2><p>Selon vos priorités${ranking.isDefault ? " (par défaut : rémunération, évolution, équilibre)" : ""}, d'après les réponses des ingénieurs à l'enquête IESF 2025.</p></div>
+        <div class="sec-cards">${ranking.rows.slice(0, 4).map((r, i) => sectorCard(r, i, ranking, P.group)).join("")}</div>
+      </section>
+      <section class="out-sec" aria-labelledby="co-title">
+        <div class="out-h out-h-row">
+          <div><h2 id="co-title">Employeurs à explorer</h2><p>${nf.format(list.length)} employeur${list.length > 1 ? "s" : ""}${ui.favOnly ? " en favoris" : ""}, du plus au moins compatible avec ce scénario.</p></div>
+          <div class="co-tools">
+            <label class="sr-only" for="co-sort">Trier les employeurs</label>
+            <select class="select" id="co-sort">
+              <option value="match" ${ui.sort === "match" ? "selected" : ""}>Trier par adéquation</option>
+              <option value="local" ${ui.sort === "local" ? "selected" : ""}>Trier par présence dans vos régions</option>
+              <option value="size" ${ui.sort === "size" ? "selected" : ""}>Trier par effectif</option>
+            </select>
+            <button type="button" class="chip${ui.favOnly ? " is-on" : ""}" data-action="fav-only" aria-pressed="${ui.favOnly}">${icon("star", "ico-s")}<b>Favoris <span data-fav-count>${favorites.length}</span></b></button>
+          </div>
+        </div>
+        ${!ENT.length ? `<p class="empty">La liste des employeurs n'est pas disponible. Lancez <code>python orientation/build_entreprises.py</code>.</p>`
+          : shown.length ? `<div class="co-grid">${shown.map(companyCard).join("")}</div>`
+          : `<p class="empty">${ui.favOnly ? "Aucun favori pour l'instant : touchez l'étoile d'une carte pour l'ajouter." : "Aucun employeur ne correspond."}</p>`}
+        ${list.length > ui.shown ? `<div class="more-row"><button type="button" class="btn btn-ghost" data-action="more">Afficher 12 employeurs de plus</button></div>` : ""}
+      </section>
+      <p class="fine src">Employeurs : ${esc(window.IESF_ENTREPRISES?.source || "")}, extraction du ${esc(window.IESF_ENTREPRISES?.genere || "")}. Les chiffres affichés sur une carte sont ceux de son secteur dans l'enquête IESF, pas ceux de l'entreprise.</p>`;
+    flipLast(box, first);
+    const peek = $("#peek");
+    if (peek) {
+      peek.innerHTML = `<span><small>Salaire visé</small><b>${keur(sal.pred.p50)}</b></span><span><small>Très compatibles</small><b>${nf.format(strong)}</b></span><span class="peek-go">Résultats ↓</span>`;
+      peek.classList.remove("bump"); void peek.offsetWidth; peek.classList.add("bump");
+    }
+  }
+
+  let pending = 0;
+  function scheduleRefresh() {
+    cancelAnimationFrame(pending);
+    pending = requestAnimationFrame(() => {
+      const v = document.body.dataset.view;
+      if (v === "explore") renderOutcomes();
+      if (v === "compare") renderCompare();
+    });
+  }
+  function updateScenario(mutate) {
+    mutate(current());
+    persist();
+    syncCriteria();
+    scheduleRefresh();
+  }
+  function refreshView() {
+    const v = document.body.dataset.view;
+    if (v === "explore") renderExplore();
+    else if (v === "compare") renderCompare();
+    else if (v === "results") renderResults();
+  }
+
+  // ------------------------------------------------------------------ comparer les scénarios
+  function renderCompare() {
+    ensureScenarios();
+    const P = computeProfile(answers);
+    const L = "ABC";
+    const cols = scenarios.map((sc) => {
+      const ranking = rankSectors(sc.weights, P.group);
+      const scored = scoreCompanies(sc, ranking);
+      return { sc, ranking, scored, byId: new Map(scored.map((x) => [x.c.id, x.score])), sal: scenarioSalary(sc, ranking), ind: topSectorIndicators(ranking, P.group), top: scored.slice(0, 5) };
+    });
+    const multi = cols.length > 1;
+    const common = multi ? cols[0].top.map((x) => x.c.id).filter((id) => cols.every((col) => col.top.some((y) => y.c.id === id))) : [];
+    const maxSal = Math.max(...cols.map((c) => c.sal.pred.p75));
+    const chips = (sc) => [
+      ...Object.entries(sc.weights).filter(([, w]) => w > 0).sort((a, b) => b[1] - a[1]).map(([k, w]) => `<span class="tag${w === 2 ? " strong" : ""}">${icon(PRIO_ICON[k], "ico-s")}${esc(PRIORITES[k].label)}</span>`),
+      ...sc.themes.map((g) => `<span class="tag">${icon(GROUPS[g][2], "ico-s")}${esc(GROUPS[g][0])}</span>`),
+      ...(sc.regions.length ? sc.regions.map((r) => `<span class="tag">${icon("pin", "ico-s")}${esc(REGIONS[r])}</span>`) : [`<span class="tag">${icon("pin", "ico-s")}Toute la France</span>`]),
+      ...sc.sizes.map((s) => `<span class="tag">${SIZES[s][0]}</span>`),
+      sc.role !== "any" ? `<span class="tag">${ROLES[sc.role]}</span>` : "", sc.nature !== "any" ? `<span class="tag">${NATURES[sc.nature]}</span>` : "",
+      sc.ess ? '<span class="tag ess">ESS</span>' : "",
+    ].join("");
+    const INDS = [
+      ["equilibre", "Équilibre vie pro / perso", note, 5], ["sens", "Sens du travail", note, 5], ["perspectives", "Perspectives de carrière", note, 5],
+      ["teletravail", "Pratiquent le télétravail", (v) => pct(v), 1], ["crainte", "Craignent pour leur emploi", (v) => pct(v), 0.2, true],
+    ];
+    const best = (key, low) => {
+      if (!multi) return -1;
+      const vals = cols.map((c) => c.ind[key]);
+      const target = low ? Math.min(...vals) : Math.max(...vals);
+      return vals.filter((v) => v === target).length === 1 ? vals.indexOf(target) : -1;
+    };
+    const salBest = multi ? cols.map((c) => c.sal.pred.p50).indexOf(Math.max(...cols.map((c) => c.sal.pred.p50))) : -1;
+
+    const col = (c, i) => `
+      <article class="cmp-col${i === active ? " is-active" : ""}">
+        <header class="cmp-head"><span class="sc-letter">${L[i]}</span><h2>${esc(c.sc.name)}</h2>
+          <button type="button" class="link-btn" data-action="sc-edit" data-i="${i}">Modifier</button></header>
+        <div class="cmp-cell cmp-chips">${chips(c.sc)}</div>
+        <div class="cmp-cell cmp-sal${i === salBest ? " is-best" : ""}">
+          <span class="cmp-l">Salaire visé</span><b>${keur(c.sal.pred.p50)}</b>
+          <span class="cmp-range"><span style="left:${(c.sal.pred.p25 / maxSal) * 100}%;width:${((c.sal.pred.p75 - c.sal.pred.p25) / maxSal) * 100}%"></span><i style="left:${(c.sal.pred.p50 / maxSal) * 100}%"></i></span>
+          <small>${keur(c.sal.pred.p25)} – ${keur(c.sal.pred.p75)}${c.sal.now ? ` · ${signed(c.sal.pred.p50 / c.sal.now - 1)} par rapport à aujourd'hui` : ""}</small>
+        </div>
+        <div class="cmp-cell"><span class="cmp-l">Secteurs en tête</span>
+          <ol class="cmp-sectors">${c.ranking.rows.slice(0, 3).map((r) => `<li><span>${esc(SECTEURS[r.key][0])}</span><span class="fit"><span style="width:${Math.round(r.norm * 100)}%"></span></span></li>`).join("")}</ol></div>
+        <div class="cmp-cell"><span class="cmp-l">Ce que vivent les ingénieurs de ces secteurs</span>
+          <dl class="cmp-ind">${INDS.map(([k, l, fmt, max, low]) => `<div class="${best(k, low) === i ? "is-best" : ""}"><dt>${l}</dt><dd>${fmt(c.ind[k])}</dd>
+            <span class="ind-bar"><span style="width:${clamp(((c.ind[k] ?? 0) / max) * 100, 0, 100)}%"></span></span></div>`).join("")}</dl></div>
+        <div class="cmp-cell"><span class="cmp-l">Employeurs en tête</span>
+          <ul class="cmp-cos">${c.top.map((x) => `<li class="${common.includes(x.c.id) ? "is-common" : ""}">
+            <span class="mono-tile sm" style="--h:${hueOf(x.c.g)}" aria-hidden="true">${esc(initials(x.c.n))}</span>
+            <span class="cmp-co-n">${esc(x.c.n)}${common.includes(x.c.id) ? '<small>Dans tous vos scénarios</small>' : ""}</span><b>${x.score}</b></li>`).join("")}</ul></div>
+      </article>`;
+
+    const favRows = favorites.map((id) => ENT_BY_ID.get(id)).filter(Boolean);
+    $("#view-compare").innerHTML = `
+      <div class="wrap compare">
+        ${phaseBar("compare")}
+        <header class="ex-head">
+          <p class="eyebrow">Comparer vos choix</p>
+          <h1 id="compare-title">${multi ? "Vos scénarios côte à côte" : "Créez un deuxième scénario pour comparer"}</h1>
+          <p class="lede">${multi ? "Les meilleures valeurs de chaque ligne sont signalées. Modifiez un scénario pour voir la comparaison changer." : "Dupliquez votre scénario, changez quelques critères (une autre région, d'autres priorités) et comparez les résultats ici."}</p>
+        </header>
+        ${scenarioBar("compare")}
+        <div class="cmp-grid" style="--n:${multi ? cols.length : 2}">
+          ${cols.map(col).join("")}
+          ${!multi ? `<button type="button" class="cmp-ghost" data-action="sc-add"><span>+</span><b>Créer le scénario B</b><small>à partir de « ${esc(cols[0].sc.name)} »</small></button>` : ""}
+        </div>
+        <section class="fav-cmp" aria-labelledby="fav-title">
+          <div class="out-h"><h2 id="fav-title">${icon("star", "ico-s")} Vos employeurs favoris</h2>
+            <p>${favRows.length ? "Leur adéquation avec chacun de vos scénarios, et les chiffres de leur secteur." : "Touchez l'étoile d'une carte employeur en phase 2 pour l'ajouter ici."}</p></div>
+          ${favRows.length ? `<div class="table-wrap"><table class="data fav-table">
+            <thead><tr><th>Employeur</th><th>Domaine</th><th>Taille</th><th>Implantations</th>${cols.map((c, i) => `<th class="n">Scénario ${L[i]}</th>`).join("")}<th class="n">Médiane du secteur</th><th class="n">Équilibre</th><th><span class="sr-only">Retirer</span></th></tr></thead>
+            <tbody>${favRows.map((c) => {
+              const s = S.secteurs[c.k];
+              const regs = Object.entries(c.r).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => REGIONS[k]).filter(Boolean);
+              return `<tr><td><span class="fav-name"><span class="mono-tile sm" style="--h:${hueOf(c.g)}" aria-hidden="true">${esc(initials(c.n))}</span>${esc(c.n)}</span></td>
+                <td>${esc(GROUPS[c.g]?.[0] || "")}</td><td>${SIZES[sizeOf(c)][0]}</td><td>${esc(regs.join(", "))}${Object.keys(c.r).length > 3 ? "…" : ""}</td>
+                ${cols.map((col) => { const v = col.byId.get(c.id) ?? 0; return `<td class="n"><span class="pill ${v >= 75 ? "hi" : v >= 50 ? "mid" : "lo"}">${v}</span></td>`; }).join("")}
+                <td class="n">${keur(s?.salParEtape?.[P.group] ?? s?.salaire)}</td><td class="n">${note(s?.sat.equilibre)}</td>
+                <td><button type="button" class="link-btn" data-fav="${c.id}" aria-label="Retirer ${esc(c.n)} des favoris">Retirer</button></td></tr>`;
+            }).join("")}</tbody></table></div>` : ""}
+        </section>
+      </div>`;
   }
 
   // ------------------------------------------------------------------ graphiques
@@ -596,21 +1116,31 @@
 
   // ------------------------------------------------------------------ bilan
   function renderResults() {
-    const a = answers;
-    const P = computeProfile(a);
+    ensureScenarios();
+    const sc = current();
+    const P = computeProfile(answers);
     const { stage, st, bucket, b, group } = P;
     const etu = stage === "etudiant";
+    const ranking = rankSectors(sc.weights, group);
+    // Le bilan combine le profil (phase 1) et le scénario actif (phase 2).
+    const themeSectors = [...new Set(sc.themes.map((g) => GROUPS[g][1]))];
+    const a = {
+      ...answers, projet: sc.projet,
+      secteursVises: (themeSectors.length ? themeSectors : ranking.rows.slice(0, 2).map((r) => r.key)).slice(0, 3),
+      service: answers.service || sc.service,
+      zone: answers.zone || (sc.regions.length ? zoneOf(sc.regions[0]) : null),
+    };
     const rech = a.situation === "recherche";
     const pred = etu ? predict({ ...a, secteur: a.secteursVises?.[0] ?? null, manager: "non", codir: "non" }, "e0") : predict(a, bucket);
     const pctile = a.salaire && !etu ? percentileOf(a.salaire, pred, bucket) : null;
-    const ranking = rankSectors(a.priorites || [], group);
+    const scored = scoreCompanies(sc, ranking);
     const sections = [];
 
     // --- En-tête
     const expTxt = etu ? "en formation" : `${P.exp} an${P.exp > 1 ? "s" : ""} d'expérience`;
     const head = `
       <header class="report-head">
-        <p class="eyebrow">Votre bilan · ${esc(S.meta.source)}</p>
+        <p class="eyebrow">Votre bilan · scénario « ${esc(sc.name)} » · ${esc(S.meta.source)}</p>
         <h1 id="results-title">${esc(st.label)}${rech ? ", en recherche d'emploi" : ""}</h1>
         <p class="lede">${esc(st.pitch)} Vous êtes comparé${a.genre === "f" ? "e" : ""} aux ingénieurs ${etu ? "diplômés depuis moins de 3 ans" : `ayant ${b.range[0]} à ${Math.min(b.range[1], 45)} ans d'expérience`} (${nf.format(b.n)} répondants).</p>
         <div class="objectives">${st.objectives.map(([t, d]) => `<div class="objective"><b>${t}</b><span>${d}</span></div>`).join("")}</div>
@@ -707,7 +1237,7 @@
     const showMetrics = [...new Set(ranking.prios.map((p) => PRIORITES[p].m[0]))];
     sections.push(["secteurs", "Secteurs à explorer", `
       <div class="block-head"><h2>Les secteurs qui correspondent à vos priorités</h2>
-        <p>Classement selon ${ranking.prios.map((p) => `« ${PRIORITES[p].label.toLowerCase()} »`).join(", ")}${a.priorites?.length ? "" : " (priorités par défaut)"}. Salaires à votre étape de carrière, satisfaction notée sur 5 par les ingénieurs du secteur.</p></div>
+        <p>Classement selon ${ranking.prios.map((p) => `« ${PRIORITES[p].label.toLowerCase()} »`).join(", ")}${ranking.isDefault ? " (priorités par défaut)" : ""}. Salaires à votre étape de carrière, satisfaction notée sur 5 par les ingénieurs du secteur.</p></div>
       <div class="table-wrap"><table class="data">
         <thead><tr><th>#</th><th>Secteur</th><th>Adéquation</th>${showMetrics.map((mk) => `<th class="n">${esc(metric(mk).label)}</th>`).join("")}</tr></thead>
         <tbody>${ranking.rows.map((r, i) => `<tr class="${cur.includes(r.key) ? "is-you" : ""}">
@@ -715,6 +1245,16 @@
           <td><span class="score"><span style="width:${(r.norm * 100).toFixed(0)}%"></span></span></td>
           ${showMetrics.map((mk) => { const M = metric(mk); const v = M.get(S.secteurs[r.key], group); return `<td class="n">${v == null ? "—" : M.fmt(v)}</td>`; }).join("")}
         </tr>`).join("")}</tbody></table></div>`]);
+
+    // --- Employeurs
+    if (ENT.length) {
+      const favs = favorites.map((id) => scored.find((x) => x.c.id === id)).filter(Boolean);
+      const top = scored.filter((x) => !favorites.includes(x.c.id)).slice(0, Math.max(3, 6 - favs.length));
+      sections.push(["employeurs", "Employeurs à explorer", `
+        <div class="block-head"><h2>Employeurs à explorer</h2>
+          <p>${favs.length ? "Vos favoris, puis les employeurs les plus compatibles" : "Les employeurs les plus compatibles"} avec le scénario « ${esc(sc.name)} ». Données SIRENE ; les chiffres sont ceux du secteur dans l'enquête IESF.</p></div>
+        <div class="co-grid co-grid-report">${[...favs, ...top].map(companyCard).join("")}</div>`]);
+    }
 
     // --- Ressenti
     const rated = a.ressenti && Object.keys(a.ressenti).length;
@@ -764,6 +1304,12 @@
 
     // --- Plan d'action
     const plan = buildPlan(a, P, pred, pctile, ranking);
+    if (ENT.length && scored[0]) {
+      const names = scored.slice(0, 3).map((x) => x.c.n);
+      plan.splice(Math.min(2, plan.length), 0, { when: "Ce mois-ci", t: "Prenez contact avec trois employeurs ciblés",
+        d: `D'après vos critères : ${names.map(esc).join(", ")}. Repérez un ingénieur de chacun sur LinkedIn ou via votre réseau d'anciens et demandez-lui 20 minutes d'échange sur son quotidien.` });
+      plan.length = Math.min(plan.length, 7);
+    }
     sections.push(["plan", "Votre plan d'action", `
       <div class="block-head"><h2>Votre plan d'action</h2><p>Classé par ordre de priorité, à partir de vos réponses et des données de vos pairs.</p></div>
       <ol class="plan">${plan.map((p) => `<li><div><span class="when">${esc(p.when)}</span><h3>${esc(p.t)}</h3><p>${p.d}</p></div></li>`).join("")}</ol>`]);
@@ -778,14 +1324,16 @@
       ["Zone", a.zone ? ZONES[a.zone] : null],
       ["Projet", a.projet && st.projets[a.projet] ? st.projets[a.projet] : null],
     ].filter(([, v]) => v);
+    $("#results-phase").innerHTML = phaseBar("results");
     $("#results").innerHTML = `
       <aside class="summary" aria-label="Résumé de votre profil">
         <div class="summary-card">
           <span class="stage-chip">${esc(st.label)}</span>
           ${isExample ? `<p class="example-flag">Exemple fictif : une ingénieure R&D de 34 ans. Faites votre propre parcours pour obtenir votre bilan.</p>` : ""}
-          <dl class="facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
+          <dl class="facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}<div><dt>Scénario</dt><dd>${esc(sc.name)}</dd></div></dl>
           <div class="summary-actions">
-            ${isExample ? `<button class="btn btn-primary" type="button" data-action="restart">Faire mon parcours</button>` : `<button class="btn btn-primary" type="button" data-action="edit">Modifier mes réponses</button>`}
+            ${isExample ? `<button class="btn btn-primary" type="button" data-action="restart">Faire mon parcours</button>` : `<button class="btn btn-primary" type="button" data-goto="explore">Ajuster mes critères</button>`}
+            ${isExample ? "" : `<button class="btn btn-ghost" type="button" data-goto="wizard">Modifier mon profil</button>`}
             <button class="btn btn-ghost" type="button" data-action="copy">Copier la synthèse</button>
             ${isExample ? "" : `<button class="btn btn-ghost" type="button" data-action="restart">Recommencer à zéro</button>`}
           </div>
@@ -800,7 +1348,7 @@
       perso: ratio, startExp: P.exp,
       you: etu ? null : a.salaire || pred.p50, youExp: P.exp,
     });
-    renderResults.summaryText = summaryText(a, P, pred, pctile, ranking, plan);
+    renderResults.summaryText = summaryText(a, P, pred, pctile, ranking, plan, scored, sc);
     renderHome();
   }
 
@@ -943,13 +1491,14 @@
     return out.filter((p) => !seen.has(p.t) && seen.add(p.t)).slice(0, 7);
   }
 
-  function summaryText(a, P, pred, pctile, ranking, plan) {
+  function summaryText(a, P, pred, pctile, ranking, plan, scored, sc) {
     const lines = [
-      `Mon bilan Boussole IESF : ${P.st.label}${P.stage === "etudiant" ? "" : `, ${P.exp} ans d'expérience`}`,
+      `Mon bilan Boussole IESF : ${P.st.label}${P.stage === "etudiant" ? "" : `, ${P.exp} ans d'expérience`} (scénario « ${sc.name} »)`,
       P.stage === "etudiant"
         ? `Salaire d'embauche estimé : ${keur(pred.p25)} à ${keur(pred.p75)} (médiane ${keur(pred.p50)})`
         : `Fourchette pour mon profil : ${keur(pred.p25)} à ${keur(pred.p75)} (médiane ${keur(pred.p50)})${pctile != null ? `, je me situe vers le ${Math.round(pctile * 100)}e centile` : ""}`,
       `Secteurs en tête pour mes priorités : ${ranking.rows.slice(0, 3).map((r) => SECTEURS[r.key][0]).join(", ")}`,
+      ...(scored.length ? [`Employeurs à explorer : ${scored.slice(0, 5).map((x) => `${x.c.n} (${x.score} %)`).join(", ")}`] : []),
       "Plan d'action :",
       ...plan.map((p, i) => `${i + 1}. ${p.t} (${p.when.toLowerCase()})`),
       `Source : ${S.meta.source}.`,
@@ -978,6 +1527,13 @@
         <li>Le télétravail est mesuré parmi les répondants concernés par la question.</li>
         <li>La courbe de trajectoire compare des générations différentes à une même date. Elle ne suit pas des personnes dans le temps.</li>
       </ul>
+      <h2>Employeurs proposés</h2>
+      <ul>
+        <li>${nf.format(ENT.length)} employeurs issus de l'API publique Recherche d'entreprises (recherche-entreprises.api.gouv.fr, données SIRENE de l'INSEE), extraits le ${esc(window.IESF_ENTREPRISES?.genere || "—")} : entreprises de 50 salariés et plus dans quinze familles d'activités qui emploient des ingénieurs, avec leurs établissements par région.</li>
+        <li>L'adéquation (0 à 100) combine le classement du secteur selon vos priorités, vos domaines, la présence d'établissements dans vos régions, la taille, le statut public ou privé et l'appartenance à l'économie sociale et solidaire. Seuls les critères que vous avez réglés comptent.</li>
+        <li>Les chiffres affichés sur une carte (salaire, satisfaction) sont ceux de son secteur dans l'enquête IESF. Aucune note propre à une entreprise n'est inventée. L'effectif régional est une estimation tirée des tranches d'effectif des établissements.</li>
+        <li>Une entreprise peut apparaître sous plusieurs entités juridiques (filiales d'un même groupe), comme dans le répertoire SIRENE.</li>
+      </ul>
       <h2>Confidentialité</h2>
       <p>Vos réponses restent dans votre navigateur. Elles ne sont envoyées nulle part et vous pouvez les effacer avec « Recommencer à zéro ».</p>
       <p class="fine">Données générées le ${esc(S.meta.genere)}.</p>`;
@@ -990,11 +1546,31 @@
     const act = t.dataset.action;
     if (t.dataset.scroll) { e.preventDefault(); document.getElementById(t.dataset.scroll)?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (t.dataset.nav) { e.preventDefault(); show(t.dataset.nav); return; }
-    if (act === "start") startWizard();
+    if (act === "start") { if (answers.situation && !isExample) go("explore"); else startWizard(); }
     if (act === "back") { if (stepIndex === 0) show("home"); else { stepIndex--; stepDir = "back"; renderStep(); } }
-    if (act === "example") { isExample = true; answers = { ...EXAMPLE }; renderResults(); show("results"); }
+    if (act === "example") { loadExample(); renderExplore({ intro: true }); show("explore"); }
     if (act === "edit") startWizard();
     if (act === "restart") { store.clear(); isExample = false; answers = {}; startWizard(true); }
+    if (act === "sc-add" && scenarios.length < 3) {
+      const copy = JSON.parse(JSON.stringify(current()));
+      copy.name = `Scénario ${"ABC"[scenarios.length]}`;
+      scenarios.push(copy);
+      active = scenarios.length - 1;
+      persist();
+      go("explore");
+      toast(`${copy.name} créé : changez ses critères, puis comparez`);
+    }
+    if (act === "sc-delete" && scenarios.length > 1) {
+      const name = current().name;
+      scenarios.splice(active, 1);
+      active = Math.max(0, active - 1);
+      persist();
+      refreshView();
+      toast(`« ${name} » supprimé`);
+    }
+    if (act === "sc-edit") { active = Number(t.dataset.i) || 0; persist(); go("explore"); }
+    if (act === "more") { ui.shown += 12; renderOutcomes(); }
+    if (act === "fav-only") { ui.favOnly = !ui.favOnly; ui.shown = 12; renderOutcomes(); }
     if (act === "copy") {
       const text = renderResults.summaryText || "";
       try { await navigator.clipboard.writeText(text); toast("Synthèse copiée"); }
@@ -1006,7 +1582,45 @@
       }
     }
   });
-  document.addEventListener("change", (e) => { if (e.target.closest(".choices[data-max]")) enforceMax(); });
+  // Phase 2 : cartes de critères, onglets de scénarios, favoris, navigation entre phases.
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-goto],[data-sc],[data-fav],[data-prio],[data-dom],[data-size],[data-nature],[data-ess],[data-region],[data-role],[data-projet]");
+    if (!t || t.disabled) return;
+    const d = t.dataset;
+    if ("goto" in d) { go(d.goto); return; }
+    if ("sc" in d) { active = Number(d.sc); ui.shown = 12; persist(); refreshView(); return; }
+    if ("fav" in d) {
+      toggleIn(favorites, d.fav);
+      persist();
+      const on = favorites.includes(d.fav);
+      $$(`[data-fav="${d.fav}"].fav-btn`).forEach((b) => { b.classList.toggle("is-on", on); b.setAttribute("aria-pressed", String(on)); b.setAttribute("aria-label", on ? "Retirer des favoris" : "Ajouter aux favoris"); });
+      $$("[data-fav-count]").forEach((el) => (el.textContent = favorites.length));
+      if (ui.favOnly || document.body.dataset.view === "compare") scheduleRefresh();
+      toast(on ? "Ajouté à vos favoris" : "Retiré de vos favoris");
+      return;
+    }
+    updateScenario((sc) => {
+      if ("prio" in d) sc.weights[d.prio] = ((sc.weights[d.prio] || 0) + 1) % 3;
+      if ("dom" in d) toggleIn(sc.themes, d.dom);
+      if ("size" in d) toggleIn(sc.sizes, d.size);
+      if ("nature" in d) sc.nature = d.nature;
+      if ("ess" in d) sc.ess = !sc.ess;
+      if ("region" in d) { if (!d.region) sc.regions = []; else toggleIn(sc.regions, d.region); }
+      if ("role" in d) sc.role = d.role;
+      if ("projet" in d) sc.projet = sc.projet === d.projet ? null : d.projet;
+    });
+  });
+  document.addEventListener("change", (e) => {
+    if (e.target.closest(".choices[data-max]")) enforceMax();
+    if (e.target.id === "sc-service") updateScenario((sc) => (sc.service = e.target.value || null));
+    if (e.target.id === "co-sort") { ui.sort = e.target.value; renderOutcomes(); }
+  });
+  document.addEventListener("input", (e) => {
+    if (e.target.id !== "sc-name") return;
+    current().name = e.target.value.trim() || `Scénario ${"ABC"[active]}`;
+    $$(".sc-tab.is-active .sc-name").forEach((el) => (el.textContent = current().name));
+    persist();
+  });
   $("#wizard-form").addEventListener("submit", onSubmit);
   window.addEventListener("popstate", route);
   let resizeTimer;

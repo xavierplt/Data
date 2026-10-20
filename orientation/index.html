@@ -97,9 +97,9 @@
       <p class="eyebrow">En trois temps</p>
       <h2 class="section-title" id="how-title">Comment ça marche</h2>
       <ol class="how-steps">
-        <li><span class="how-n">1</span><div><h3>Vous décrivez votre situation</h3><p>Âge, formation, poste, ressenti et priorités. Chaque question est facultative sauf l'âge et la situation.</p></div></li>
-        <li><span class="how-n">2</span><div><h3>On vous compare à des profils proches</h3><p>Même expérience, même secteur, même type d'entreprise et même région, à partir des réponses pondérées de l'enquête.</p></div></li>
-        <li><span class="how-n">3</span><div><h3>Vous repartez avec un plan</h3><p>Positionnement salarial, leviers chiffrés, secteurs adaptés à vos priorités et actions concrètes pour les prochains mois.</p></div></li>
+        <li><span class="how-n">1</span><div><h3>Votre profil</h3><p>Âge, formation, poste et ressenti, en quatre écrans. On vous situe aussitôt parmi les ingénieurs qui vous ressemblent.</p></div></li>
+        <li><span class="how-n">2</span><div><h3>Ce qui compte pour vous</h3><p>Priorités, domaines, type d'employeur, régions : réglez vos critères en cartes et voyez secteurs et employeurs se reclasser en direct.</p></div></li>
+        <li><span class="how-n">3</span><div><h3>Comparez, puis décidez</h3><p>Enregistrez plusieurs scénarios, comparez-les côte à côte avec vos employeurs favoris, et repartez avec un bilan et un plan d'action.</p></div></li>
       </ol>
     </section>
 
@@ -116,6 +116,7 @@
   <!-- ============================================================ PARCOURS -->
   <section class="view" id="view-wizard" hidden aria-labelledby="wizard-title">
     <canvas class="contours contours-soft" data-contours="soft" aria-hidden="true"></canvas>
+    <div class="wrap" id="wizard-phasebar"></div>
     <div class="wrap wizard">
       <div class="wizard-progress" aria-hidden="true">
         <ol id="progress-steps"></ol>
@@ -134,8 +135,15 @@
     </div>
   </section>
 
+  <!-- ============================================================ PHASE 2 : CE QUI COMPTE -->
+  <section class="view" id="view-explore" hidden aria-labelledby="explore-title"></section>
+
+  <!-- ============================================================ COMPARER -->
+  <section class="view" id="view-compare" hidden aria-labelledby="compare-title"></section>
+
   <!-- ============================================================ BILAN -->
   <section class="view" id="view-results" hidden aria-labelledby="results-title">
+    <div class="wrap" id="results-phase"></div>
     <div class="wrap results" id="results"></div>
   </section>
 
@@ -161,6 +169,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="data/stats.js"></script>
+<script src="data/entreprises.js"></script>
 <script src="assets/motion.js"></script>
 <script src="assets/app.js"></script>
 </body>

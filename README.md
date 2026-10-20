@@ -326,7 +326,12 @@ Chargé depuis GitHub avec `@st.cache_data(ttl=86400 * 7)` — une semaine de ca
 
 ## Boussole IESF — site d'orientation
 
-Le dossier [`orientation/`](orientation/) contient un site statique (HTML/CSS/JS, sans dépendance ni serveur) qui guide l'utilisateur dans un parcours en 5 étapes (Vous → Formation → Poste → Ressenti → Cap) puis lui remet un bilan personnalisé.
+Le dossier [`orientation/`](orientation/) contient un site statique (HTML/CSS/JS, sans dépendance ni serveur) organisé en deux phases :
+
+1. **Votre profil** — âge, région, formation, poste, ressenti (2 à 4 écrans selon la situation).
+2. **Ce qui compte pour vous** — critères réglés en cartes (priorités à trois niveaux, domaines, taille et statut de l'employeur, régions, rôle et métier visés, projet). Les secteurs, le salaire visé et les employeurs proposés se recalculent en direct.
+
+L'utilisateur peut enregistrer jusqu'à trois **scénarios**, les **comparer** côte à côte, mettre des employeurs en **favoris**, puis consulter un **bilan détaillé** qui suit le scénario actif. Tout est sauvegardé dans le navigateur.
 
 L'étape de carrière est déduite de l'âge, de la situation et de l'année de diplôme. Elle change les questions posées, les indicateurs et le plan d'action :
 
@@ -342,8 +347,11 @@ La situation « En recherche d'emploi » ajoute les canaux de retour à l'emploi
 
 **Données :** `orientation/build_data.py` lit l'Excel 2025 et produit `orientation/data/stats.js`, qui ne contient que des agrégats pondérés (≥ 30 répondants) ainsi que les coefficients d'une régression log-salaire (expérience, secteur, taille, zone, diplôme, fonction, encadrement, codir ; R² ≈ 0,55). Le genre est exclu de l'estimation et sert uniquement à mesurer l'écart F/H à profil égal.
 
+**Employeurs :** `orientation/build_entreprises.py` interroge l'[API Recherche d'entreprises](https://recherche-entreprises.api.gouv.fr) (données SIRENE, sans clé) pour 15 familles d'activités × 12 régions et produit `orientation/data/entreprises.js` (~1 050 employeurs de 50 salariés et plus, avec effectif régional estimé, statut public, ESS). Les cartes employeurs affichent les indicateurs **du secteur** issus de l'enquête IESF, jamais de notes propres à l'entreprise.
+
 ```bash
-python orientation/build_data.py       # régénère data/stats.js (~3 min de lecture Excel)
+python orientation/build_data.py         # régénère data/stats.js (~3 min de lecture Excel)
+python orientation/build_entreprises.py  # régénère data/entreprises.js (~500 requêtes, ~2 min)
 ```
 
 Ouvrir `orientation/index.html` directement dans un navigateur suffit. L'ancre `#exemple` affiche un bilan de démonstration.
